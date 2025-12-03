@@ -6,6 +6,7 @@ using FoodOrder.DTOs;
 using System.Runtime.CompilerServices;
 using FoodOrder.Data;
 using Microsoft.EntityFrameworkCore;
+using FoodOrder.Repositories.Common;
 
 namespace FoodOrder.Controllers
 {
@@ -13,71 +14,49 @@ namespace FoodOrder.Controllers
     [Route("api/restaurants")]
     public class RestaurantController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly ApplicationRepository<Restaurant> _repo;
 
-        public RestaurantController(AppDbContext context)
+        public RestaurantController(ApplicationRepository<Restaurant> repo)
         {
-            _context = context;
+            _repo = repo;
         }
         [HttpGet]
         public async Task<ActionResult<List<RestaurantResponse>>> GetAll()
         {
-            var restaurants = await _context.Restaurants
-                .Include(r => r.Categories)
-                    .ThenInclude(c => c.Foods)
-                .ToListAsync();
-
+            var restaurants = await _repo.GetAllAsync();
             return restaurants.Select(MapToResponse).ToList();
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<RestaurantResponse>>GetById(int id)
         {
-            var restaurant =await _context.Restaurants
-                .Include(r => r.Categories)
-                .ThenInclude(c=>c.Foods)
-                .FirstOrDefaultAsync(r => r.Id == id);
-            if (restaurant == null) return NotFound();
+            var restaurant =await _repo.GetByIdAsync(id); 
+                if (restaurant == null) return NotFound();
             return MapToResponse(restaurant);
         }
         [HttpPost]
         public async Task<ActionResult<RestaurantResponse>>Create(Restaurant restaurant)
         {
             restaurant.RestaurantCode = Guid.NewGuid();
+            var created=await _repo.AddAsync(restaurant);
+            return CreatedAtAction(nameof(GetById), new {id=created.Id},MapToResponse(created));
 
-            _context.Restaurants.Add(restaurant);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new {id=restaurant.Id},MapToResponse(restaurant));
         }
         [HttpPut("{id}")]
         public async Task<ActionResult> Update(int id, Restaurant restaurant)
         {
             if (id != restaurant.Id) return BadRequest();
-            _context.Entry(restaurant).State = EntityState.Modified;
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!RestaurantExists(id)) return NotFound();
-            }
+            await _repo.UpdateAsync(restaurant);
             return NoContent();
         }
         [HttpDelete("{id}")]
         public async Task<ActionResult>Delete(int id)
         {
-            var restaurant = await _context.Restaurants.FindAsync(id);
-            if (restaurant == null) return NotFound();
-            _context.Restaurants.Remove(restaurant);
-            await _context.SaveChangesAsync();
+           var deleted=await _repo.DeleteAsync(id);
+            if(!deleted) return NotFound();
             return NoContent();
         }
-        private bool RestaurantExists(int id)
-        {
-            return _context.Restaurants.Any(e => e.Id == id);
-        }
-
+        
         private RestaurantResponse MapToResponse(Restaurant restaurant)
         {
             return new RestaurantResponse
