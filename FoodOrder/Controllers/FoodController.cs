@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using FoodOrder.Services;
 using FoodOrder.Models;
+using FoodOrder.Repositories.Common;
+using FoodOrder.DTOs;
 
 namespace FoodOrder.Controllers
 {
@@ -8,25 +10,56 @@ namespace FoodOrder.Controllers
     [Route("api/food")]
     public class FoodController : ControllerBase
     {
-        [HttpGet]
-        public List<Food> GetAll()
+        private readonly ApplicationRepository<Food> _repo;
+        public FoodController(ApplicationRepository<Food> repo)
         {
-            return FoodRepository.Foods;
+            _repo = repo;
+        }
+        [HttpGet]
+        public async Task<ActionResult<List<FoodResponse>>> GetAll()
+        {
+            var foods=await _repo.GetAllAsync();
+            return foods.Select(MapToResponse).ToList();
 
         }
-        [HttpGet("byname/{name}")]
-        public ActionResult<Food> GetByName(string name)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<FoodResponse>>GetById(int id)
         {
-            var foodName = FoodRepository.Foods.FirstOrDefault(f => f.Name == name);
-            return foodName;
-
+            var food=await _repo.GetByIdAsync(id);
+            if(food==null)return NotFound();
+            return MapToResponse(food);
         }
         [HttpPost]
-        public Food Add(Food food)
+        public async Task<ActionResult<FoodResponse>> Create(Food food)
         {
-            food.Id = FoodRepository.Foods.Count + 1;
-            FoodRepository.Foods.Add(food);
-            return food;
+            var created = await _repo.AddAsync(food);
+            return CreatedAtAction(nameof(GetById), new { id = created.Id }, MapToResponse(created));
+        }
+        [HttpPut("{id}")]
+        public async Task<ActionResult> Update(int id, Food food)
+        {
+            if (id !=food.Id) return BadRequest();
+            await _repo.UpdateAsync(food);
+            return NoContent();
+        }
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> Delete(int id)
+        {
+            var deleted = await _repo.DeleteAsync(id);
+            if (!deleted) return NotFound();
+            return NoContent();
+        }
+
+
+        private FoodResponse MapToResponse(Food food)
+        {
+            return new FoodResponse
+            {
+                Name = food.Name,
+                Price = food.Price,
+                Description = food.Description,
+                Type = food.Type
+            };
         }
     }
 }
