@@ -27,12 +27,6 @@ namespace FoodOrder.Data
                 .HasForeignKey(c => c.RestaurantId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // Restaurant -> Reviews
-            modelBuilder.Entity<Restaurant>()
-                .HasMany(r => r.Reviews)
-                .WithOne(rv => rv.Restaurant)
-                .HasForeignKey(rv => rv.RestaurantId)
-                .OnDelete(DeleteBehavior.NoAction);
 
             // FoodCategory -> Foods
             modelBuilder.Entity<FoodCategory>()
@@ -57,31 +51,31 @@ namespace FoodOrder.Data
 
             // Order -> User
             modelBuilder.Entity<Order>()
-                .HasOne(o => o.User)
-                .WithMany(u => u.Orders)
-                .HasForeignKey(o => o.UserId)
-                .OnDelete(DeleteBehavior.NoAction);
+     .HasOne(o => o.User)
+     .WithMany(u => u.Orders)
+     .HasForeignKey(o => o.UserId)
+     .OnDelete(DeleteBehavior.Restrict);
 
             // Order -> Restaurant
-            modelBuilder.Entity<Order>()
-                .HasOne(o => o.Restaurant)
-                .WithMany(r => r.Orders)
-                .HasForeignKey(o => o.RestaurantId)
-                .OnDelete(DeleteBehavior.NoAction);
+           modelBuilder.Entity<Order>()
+    .HasOne(o => o.Restaurant)
+    .WithMany(r => r.Orders)
+    .HasForeignKey(o => o.RestaurantId)
+    .OnDelete(DeleteBehavior.Restrict);
 
             // OrderItem -> Order
             modelBuilder.Entity<OrderItem>()
-                .HasOne(oi => oi.Order)
-                .WithMany(o => o.Items)
-                .HasForeignKey(oi => oi.OrderId)
-                .OnDelete(DeleteBehavior.NoAction);
+     .HasOne(oi => oi.Order)
+     .WithMany(o => o.Items)
+     .HasForeignKey(oi => oi.OrderId)
+     .OnDelete(DeleteBehavior.Restrict);
 
             // OrderItem -> Food
             modelBuilder.Entity<OrderItem>()
-                .HasOne(oi => oi.Food)
-                .WithMany(f => f.Items)
-                .HasForeignKey(oi => oi.FoodId)
-                .OnDelete(DeleteBehavior.NoAction);
+    .HasOne(oi => oi.Food)
+    .WithMany(f => f.Items)
+    .HasForeignKey(oi => oi.FoodId)
+    .OnDelete(DeleteBehavior.Restrict);
 
             // Decimal precision
             modelBuilder.Entity<Food>()

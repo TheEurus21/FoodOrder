@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FoodOrder.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251129110414_sss")]
-    partial class sss
+    [Migration("20251202072322_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -91,7 +91,7 @@ namespace FoodOrder.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("RestaurantId")
+                    b.Property<int?>("RestaurantId")
                         .HasColumnType("int");
 
                     b.Property<int>("Status")
@@ -120,10 +120,10 @@ namespace FoodOrder.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("FoodId")
+                    b.Property<int?>("FoodId")
                         .HasColumnType("int");
 
-                    b.Property<int>("OrderId")
+                    b.Property<int?>("OrderId")
                         .HasColumnType("int");
 
                     b.Property<decimal>("Price")
@@ -173,10 +173,7 @@ namespace FoodOrder.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("FoodId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("RestaurantId")
+                    b.Property<int?>("FoodId")
                         .HasColumnType("int");
 
                     b.Property<int>("UserId")
@@ -185,8 +182,6 @@ namespace FoodOrder.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FoodId");
-
-                    b.HasIndex("RestaurantId");
 
                     b.HasIndex("UserId");
 
@@ -215,7 +210,7 @@ namespace FoodOrder.Migrations
                     b.HasOne("FoodOrder.Models.FoodCategory", "Category")
                         .WithMany("Foods")
                         .HasForeignKey("FoodCategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Category");
@@ -226,7 +221,7 @@ namespace FoodOrder.Migrations
                     b.HasOne("FoodOrder.Models.Restaurant", "Restaurant")
                         .WithMany("Categories")
                         .HasForeignKey("RestaurantId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Restaurant");
@@ -235,15 +230,14 @@ namespace FoodOrder.Migrations
             modelBuilder.Entity("FoodOrder.Models.Order", b =>
                 {
                     b.HasOne("FoodOrder.Models.Restaurant", "Restaurant")
-                        .WithMany()
+                        .WithMany("Orders")
                         .HasForeignKey("RestaurantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("FoodOrder.Models.User", "User")
                         .WithMany("Orders")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Restaurant");
@@ -256,14 +250,12 @@ namespace FoodOrder.Migrations
                     b.HasOne("FoodOrder.Models.Food", "Food")
                         .WithMany("Items")
                         .HasForeignKey("FoodId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("FoodOrder.Models.Order", "Order")
                         .WithMany("Items")
                         .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Food");
 
@@ -275,24 +267,15 @@ namespace FoodOrder.Migrations
                     b.HasOne("FoodOrder.Models.Food", "Food")
                         .WithMany("Reviews")
                         .HasForeignKey("FoodId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("FoodOrder.Models.Restaurant", "Restaurant")
-                        .WithMany("Reviews")
-                        .HasForeignKey("RestaurantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("FoodOrder.Models.User", "User")
                         .WithMany("Reviews")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Food");
-
-                    b.Navigation("Restaurant");
 
                     b.Navigation("User");
                 });
@@ -318,7 +301,7 @@ namespace FoodOrder.Migrations
                 {
                     b.Navigation("Categories");
 
-                    b.Navigation("Reviews");
+                    b.Navigation("Orders");
                 });
 
             modelBuilder.Entity("FoodOrder.Models.User", b =>

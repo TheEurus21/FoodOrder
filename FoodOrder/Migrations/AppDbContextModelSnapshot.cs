@@ -173,17 +173,12 @@ namespace FoodOrder.Migrations
                     b.Property<int?>("FoodId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("RestaurantId")
-                        .HasColumnType("int");
-
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
                     b.HasIndex("FoodId");
-
-                    b.HasIndex("RestaurantId");
 
                     b.HasIndex("UserId");
 
@@ -234,12 +229,12 @@ namespace FoodOrder.Migrations
                     b.HasOne("FoodOrder.Models.Restaurant", "Restaurant")
                         .WithMany("Orders")
                         .HasForeignKey("RestaurantId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("FoodOrder.Models.User", "User")
                         .WithMany("Orders")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Restaurant");
@@ -252,12 +247,12 @@ namespace FoodOrder.Migrations
                     b.HasOne("FoodOrder.Models.Food", "Food")
                         .WithMany("Items")
                         .HasForeignKey("FoodId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("FoodOrder.Models.Order", "Order")
                         .WithMany("Items")
                         .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Food");
 
@@ -271,11 +266,6 @@ namespace FoodOrder.Migrations
                         .HasForeignKey("FoodId")
                         .OnDelete(DeleteBehavior.NoAction);
 
-                    b.HasOne("FoodOrder.Models.Restaurant", "Restaurant")
-                        .WithMany("Reviews")
-                        .HasForeignKey("RestaurantId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
                     b.HasOne("FoodOrder.Models.User", "User")
                         .WithMany("Reviews")
                         .HasForeignKey("UserId")
@@ -283,8 +273,6 @@ namespace FoodOrder.Migrations
                         .IsRequired();
 
                     b.Navigation("Food");
-
-                    b.Navigation("Restaurant");
 
                     b.Navigation("User");
                 });
@@ -311,8 +299,6 @@ namespace FoodOrder.Migrations
                     b.Navigation("Categories");
 
                     b.Navigation("Orders");
-
-                    b.Navigation("Reviews");
                 });
 
             modelBuilder.Entity("FoodOrder.Models.User", b =>

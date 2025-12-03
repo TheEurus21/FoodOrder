@@ -4,11 +4,9 @@
     {
         public int Id { get; set; }
         public string Comment { get; set; }
-        public int? RestaurantId { get; set; }
-        public Restaurant? Restaurant { get; set; } 
-        public int UserId {  get; set; }
+        public int UserId { get; set; }
         public User User { get; set; }
-        public int? FoodId {  get; set; }
+        public int? FoodId { get; set; }
         public Food? Food { get; set; }
 
     }
