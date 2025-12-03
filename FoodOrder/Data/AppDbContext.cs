@@ -85,6 +85,10 @@ namespace FoodOrder.Data
             modelBuilder.Entity<OrderItem>()
                 .Property(i => i.Price)
                 .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Restaurant>()
+       .Property(r => r.RestaurantCode)
+       .HasDefaultValueSql("NEWID()");
         }
 
     }
