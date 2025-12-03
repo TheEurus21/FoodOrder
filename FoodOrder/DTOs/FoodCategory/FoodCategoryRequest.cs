@@ -1,4 +1,6 @@
-﻿namespace FoodOrder.DTOs
+﻿using FoodOrder.DTOs.Food;
+
+namespace FoodOrder.DTOs.FoodCategory
 {
     public class FoodCategoryRequest
     {

@@ -1,12 +1,11 @@
 ﻿
 using Microsoft.AspNetCore.Mvc;
-using FoodOrder.Services;
 using FoodOrder.Models;
 using FoodOrder.DTOs;
-using System.Runtime.CompilerServices;
-using FoodOrder.Data;
-using Microsoft.EntityFrameworkCore;
 using FoodOrder.Repositories.Common;
+using FoodOrder.DTOs.Restaurant;
+using FoodOrder.DTOs.Food;
+using FoodOrder.DTOs.FoodCategory;
 
 namespace FoodOrder.Controllers
 {

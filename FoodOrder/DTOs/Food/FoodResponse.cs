@@ -1,6 +1,6 @@
 ﻿using FoodOrder.Models;
 
-namespace FoodOrder.DTOs
+namespace FoodOrder.DTOs.Food
 {
     public class FoodResponse
     {

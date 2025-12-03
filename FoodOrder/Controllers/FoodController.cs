@@ -2,7 +2,7 @@
 using FoodOrder.Services;
 using FoodOrder.Models;
 using FoodOrder.Repositories.Common;
-using FoodOrder.DTOs;
+using FoodOrder.DTOs.Food;
 
 namespace FoodOrder.Controllers
 {
