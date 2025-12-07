@@ -19,6 +19,10 @@ namespace FoodOrder.Controllers
         {
             _repo = repo;
         }
+        private int GetCurrentUserId()
+        {
+            return int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier).Value);
+        }
         [HttpGet]
         public async Task<ActionResult<List<RestaurantResponse>>> GetAll()
         {
@@ -36,6 +40,8 @@ namespace FoodOrder.Controllers
         [HttpPost]
         public async Task<ActionResult<RestaurantResponse>>Create(Restaurant restaurant)
         {
+            var userId = GetCurrentUserId(); 
+            restaurant.UserId = userId;
             restaurant.RestaurantCode = Guid.NewGuid();
             var created=await _repo.AddAsync(restaurant);
             return CreatedAtAction(nameof(GetById), new {id=created.Id},MapToResponse(created));
@@ -45,14 +51,26 @@ namespace FoodOrder.Controllers
         public async Task<ActionResult> Update(int id, Restaurant restaurant)
         {
             if (id != restaurant.Id) return BadRequest();
+            var existing = await _repo.GetByIdAsync(id);
+            if (existing == null) return NotFound();
+
+            var userId = GetCurrentUserId();
+            if (existing.UserId != userId) return Forbid();
             await _repo.UpdateAsync(restaurant);
             return NoContent();
         }
         [HttpDelete("{id}")]
         public async Task<ActionResult>Delete(int id)
         {
-           var deleted=await _repo.DeleteAsync(id);
-            if(!deleted) return NotFound();
+            var existing = await _repo.GetByIdAsync(id);
+            if (existing == null) return NotFound();
+
+            var userId = GetCurrentUserId();
+            if (existing.UserId != userId) return Forbid();
+
+            var deleted = await _repo.DeleteAsync(id);
+            if (!deleted) return NotFound();
+
             return NoContent();
         }
         
