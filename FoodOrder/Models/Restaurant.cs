@@ -8,5 +8,7 @@
         public string? Address { get; set; }
         public ICollection<FoodCategory> Categories { get; set; } = new List<FoodCategory>();
         public ICollection<Order> Orders { get; set; }
+        public int UserId { get; set; }
+        public User User { get; set; }
     }
 }
