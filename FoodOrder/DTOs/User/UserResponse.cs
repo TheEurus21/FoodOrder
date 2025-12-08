@@ -1,4 +1,7 @@
-﻿namespace FoodOrder.DTOs.User
+﻿using FoodOrder.DTOs.Order;
+using FoodOrder.DTOs.Review;
+
+namespace FoodOrder.DTOs.User
 {
     public class UserResponse
     {
@@ -11,7 +14,7 @@
         public string PhoneNumber { get; set; }  
 
      
-        public List<UserOrderResponse> Orders { get; set; } = new();
-        public List<UserReviewResponse> Reviews { get; set; } = new();
+        public List<OrderResponse> Orders { get; set; } = new();
+        public List<ReviewResponse> Reviews { get; set; } = new();
     }
 }
