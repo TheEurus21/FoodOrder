@@ -1,4 +1,4 @@
-﻿using FoodOrder.DTOs.User;
+﻿using FoodOrder.DTOs.Order;
 using FoodOrder.Models;
 using FoodOrder.Repositories.Common;
 using Microsoft.AspNetCore.Mvc;
@@ -22,21 +22,29 @@ namespace FoodOrder.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<UserOrderResponse>>> GetAll()
+        public async Task<ActionResult<List<OrderResponse>>> GetAll()
         {
             var orders = await _repo.GetAllAsync();
             return Ok(orders.Select(MapToResponse).ToList());
         }
 
         [HttpPost]
-        public async Task<ActionResult<UserOrderResponse>> Create(Order order)
+        public async Task<ActionResult<OrderResponse>> Create(OrderRequest request)
         {
-            order.UserId = GetCurrentUserId(); 
+            var order = new Order
+            {
+                RestaurantName = request.RestaurantName,
+                UserId = GetCurrentUserId(), 
+                CreatedAt = DateTime.UtcNow,
+                Status = OrderStatus.Pending, 
+                                              
+            };
+
             var created = await _repo.AddAsync(order);
             return Ok(MapToResponse(created));
         }
 
-        [HttpDelete("{id}")]
+            [HttpDelete("{id}")]
         public async Task<ActionResult> Delete(int id)
         {
             var existing = await _repo.GetByIdAsync(id);
@@ -52,23 +60,24 @@ namespace FoodOrder.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult> Update(int id, Order order)
+        public async Task<ActionResult> Update(int id, OrderRequest request)
         {
-            if (id != order.Id) return BadRequest();
-
             var existing = await _repo.GetByIdAsync(id);
             if (existing == null) return NotFound();
 
             var currentUserId = GetCurrentUserId();
             if (existing.UserId != currentUserId) return Forbid();
 
-            await _repo.UpdateAsync(order);
+            existing.RestaurantName = request.RestaurantName;
+            existing.Note = request.Notes;
+            await _repo.UpdateAsync(existing);
             return NoContent();
         }
 
-        private UserOrderResponse MapToResponse(Order order)
+
+        private OrderResponse MapToResponse(Order order)
         {
-            return new UserOrderResponse
+            return new OrderResponse
             {
                 Status = order.Status.ToString(), 
                 CreatedAt = order.CreatedAt       

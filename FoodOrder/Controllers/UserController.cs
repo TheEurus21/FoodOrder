@@ -1,6 +1,8 @@
 ﻿using FoodOrder.Models;
 using FoodOrder.Repositories.Common;
-using FoodOrder.DTOs.User; 
+using FoodOrder.DTOs.User;
+using FoodOrder.DTOs.Order;
+using FoodOrder.DTOs.Review;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FoodOrder.Controllers
@@ -32,28 +34,41 @@ namespace FoodOrder.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<UserResponse>> Create(User user)
+        public async Task<ActionResult<UserResponse>> Create(UserRequest userrequest)
         {
-            
+            var user = new User
+            {
+                Username = userrequest.Username,
+                Email = userrequest.Email,
+                Password = userrequest.Password, 
+                FullName = userrequest.FullName,
+                PhoneNumber = userrequest.PhoneNumber,
+                IsOwner = userrequest.IsOwner
+            };
+
             var created = await _repo.AddAsync(user);
+
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, MapToResponse(created));
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult> Update(int id, User user)
+        public async Task<ActionResult> Update(int id, UserRequest request)
         {
-            if (id != user.Id) return BadRequest();
-
             var existing = await _repo.GetByIdAsync(id);
             if (existing == null) return NotFound();
 
-           
             var currentUserId = GetCurrentUserId();
             if (existing.Id != currentUserId) return Forbid();
 
-            await _repo.UpdateAsync(user);
+            existing.Username = request.Username;
+            existing.Email = request.Email;
+            existing.FullName = request.FullName;
+            existing.PhoneNumber = request.PhoneNumber;
+            existing.IsOwner = request.IsOwner;
+            await _repo.UpdateAsync(existing);
             return NoContent();
         }
+
 
         [HttpDelete("{id}")]
         public async Task<ActionResult> Delete(int id)
@@ -76,11 +91,11 @@ namespace FoodOrder.Controllers
             {
                 Username = user.Username,
                 Email = user.Email,
-                Orders = user.Orders.Select(o => new UserOrderResponse
+                Orders = user.Orders.Select(o => new OrderResponse
                 {
                     Status = o.Status.ToString()
                 }).ToList(),
-                Reviews = user.Reviews.Select(r => new UserReviewResponse
+                Reviews = user.Reviews.Select(r => new ReviewResponse
                 {
                     Comment = r.Comment,
                     Rating = r.Rating

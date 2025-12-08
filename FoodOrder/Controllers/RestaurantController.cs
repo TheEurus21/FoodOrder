@@ -38,27 +38,45 @@ namespace FoodOrder.Controllers
             return MapToResponse(restaurant);
         }
         [HttpPost]
-        public async Task<ActionResult<RestaurantResponse>>Create(Restaurant restaurant)
+        public async Task<ActionResult<RestaurantResponse>> Create(RestaurantRequest request)
         {
-            var userId = GetCurrentUserId(); 
-            restaurant.UserId = userId;
-            restaurant.RestaurantCode = Guid.NewGuid();
-            var created=await _repo.AddAsync(restaurant);
-            return CreatedAtAction(nameof(GetById), new {id=created.Id},MapToResponse(created));
+            var userId = GetCurrentUserId();
 
+            var restaurant = new Restaurant
+            {
+                Name = request.Name,
+                Address = request.Address,
+                UserId = userId,
+                RestaurantCode = Guid.NewGuid()
+            };
+
+            var created = await _repo.AddAsync(restaurant);
+
+            return CreatedAtAction(nameof(GetById), new { id = created.Id }, MapToResponse(created));
         }
+
         [HttpPut("{id}")]
-        public async Task<ActionResult> Update(int id, Restaurant restaurant)
+        public async Task<ActionResult> Update(int id, RestaurantRequest request)
         {
-            if (id != restaurant.Id) return BadRequest();
             var existing = await _repo.GetByIdAsync(id);
             if (existing == null) return NotFound();
-
-            var userId = GetCurrentUserId();
-            if (existing.UserId != userId) return Forbid();
-            await _repo.UpdateAsync(restaurant);
+            existing.Name = request.Name;
+            existing.Address = request.Address;
+            existing.Categories = request.Categories.Select(c => new FoodCategory
+            {
+                Name = c.Name,
+                Foods = c.Foods.Select(f => new Food
+                {
+                    Name = f.Name,
+                    Description = f.Description,
+                    Price = f.Price,
+                    Type = f.Type
+                }).ToList()
+            }).ToList();
+            await _repo.UpdateAsync(existing);
             return NoContent();
         }
+
         [HttpDelete("{id}")]
         public async Task<ActionResult>Delete(int id)
         {
@@ -83,7 +101,6 @@ namespace FoodOrder.Controllers
                 Categories = restaurant.Categories.Select(c => new FoodCategoryResponse
                 {
                     Name = c.Name,
-                    Description = c.Description,
                     Foods = c.Foods.Select(f => new FoodResponse
                     {
                         Name = f.Name,

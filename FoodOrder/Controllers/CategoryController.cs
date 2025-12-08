@@ -30,10 +30,22 @@ namespace FoodOrder.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<FoodCategoryResponse>> Create(FoodCategory foodCategory)
+        public async Task<ActionResult<FoodCategoryResponse>> Create(FoodCategoryRequest request)
         {
-            foodCategory.UserId = GetCurrentUserId();
-            var created = await _repo.AddAsync(foodCategory);
+            var category = new FoodCategory
+            {
+                Name = request.Name,
+                UserId = GetCurrentUserId(),
+                Foods = request.Foods.Select(f => new Food
+                {
+                    Name = f.Name,
+                    Description = f.Description,
+                    Price = f.Price,
+                    Type = f.Type
+                }).ToList()
+            };
+
+            var created = await _repo.AddAsync(category);
             return Ok(MapToResponse(created));
         }
 
@@ -53,17 +65,28 @@ namespace FoodOrder.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult> Update(int id, FoodCategory foodCategory)
+        public async Task<ActionResult> Update(int id, FoodCategoryRequest request)
         {
-            if (id != foodCategory.Id) return BadRequest();
-
             var existing = await _repo.GetByIdAsync(id);
             if (existing == null) return NotFound();
 
             var currentUserId = GetCurrentUserId();
             if (existing.UserId != currentUserId) return Forbid();
 
-            await _repo.UpdateAsync(foodCategory);
+            existing.Name = request.Name;
+
+            if (request.Foods != null && request.Foods.Any())
+            {
+                existing.Foods = request.Foods.Select(f => new Food
+                {
+                    Name = f.Name,
+                    Description = f.Description,
+                    Price = f.Price,
+                    Type = f.Type
+                }).ToList();
+            }
+
+            await _repo.UpdateAsync(existing);
             return NoContent();
         }
 
@@ -72,7 +95,6 @@ namespace FoodOrder.Controllers
             return new FoodCategoryResponse
             {
                 Name = category.Name,
-                Description = category.Description,
                 Foods = category.Foods.Select(f => new FoodResponse
                 {
                     Name = f.Name,

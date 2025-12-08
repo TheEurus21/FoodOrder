@@ -1,4 +1,4 @@
-﻿using FoodOrder.DTOs.User;
+﻿using FoodOrder.DTOs.Review;
 using FoodOrder.Models;
 using FoodOrder.Repositories.Common;
 using Microsoft.AspNetCore.Mvc;
@@ -15,20 +15,28 @@ public class ReviewController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<UserReviewResponse>>> GetAll()
+    public async Task<ActionResult<List<ReviewResponse>>> GetAll()
     {
         var reviews = await _repo.GetAllAsync();
         return reviews.Select(MapToResponse).ToList();
     }
 
     [HttpPost]
-    public async Task<ActionResult<UserReviewResponse>> Create(Review review)
+    public async Task<ActionResult<ReviewResponse>> Create(ReviewRequest request)
     {
-        review.UserId = GetCurrentUserId();
+        var review = new Review
+        {
+            FoodName = request.FoodName,
+            Rating = request.Rating,
+            Comment = request.Comment,
+            UserId = GetCurrentUserId(),   
+            CreatedAt = DateTime.UtcNow   
+        };
 
         var created = await _repo.AddAsync(review);
         return Ok(MapToResponse(created));
     }
+
 
     [HttpDelete("{id}")]
     public async Task<ActionResult> Delete(int id)
@@ -46,23 +54,23 @@ public class ReviewController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<ActionResult> Update(int id, Review review)
+    public async Task<ActionResult> Update(int id, ReviewRequest request)
     {
-        if (id != review.Id) return BadRequest();
-
         var existing = await _repo.GetByIdAsync(id);
         if (existing == null) return NotFound();
 
         var currentUserId = GetCurrentUserId();
-        if (existing.UserId != currentUserId) return Forbid(); 
+        if (existing.UserId != currentUserId) return Forbid();
+        existing.Rating = request.Rating;
+        existing.Comment = request.Comment;
 
-        await _repo.UpdateAsync(review);
+        await _repo.UpdateAsync(existing);
         return NoContent();
     }
 
-    private UserReviewResponse MapToResponse(Review review)
+    private ReviewResponse MapToResponse(Review review)
     {
-        return new UserReviewResponse
+        return new ReviewResponse
         {
             Comment = review.Comment,
             FoodId = review.FoodId,
