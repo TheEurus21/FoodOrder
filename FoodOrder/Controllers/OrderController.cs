@@ -3,6 +3,7 @@ using FoodOrder.Models;
 using FoodOrder.Repositories.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FoodOrder.Controllers
 {
@@ -42,33 +43,29 @@ namespace FoodOrder.Controllers
             var created = await _repo.AddAsync(order);
             return Ok(MapToResponse(created));
         }
-
-            [HttpDelete("{id}")]
+        [HttpDelete("latest")]
         [Authorize(Roles = "Customer")]
-        public async Task<ActionResult> Delete(int id)
+        public async Task<ActionResult> DeleteLatest()
         {
-            var existing = await _repo.GetByIdAsync(id);
+            var currentUserId = GetCurrentUserId();
+            var existing = await _repo.GetLatestOrderByUserAsync(currentUserId);
+
             if (existing == null) return NotFound();
 
-            var currentUserId = GetCurrentUserId();
-            if (existing.UserId != currentUserId) return Forbid();
-
-            var deleted = await _repo.DeleteAsync(id);
+            var deleted = await _repo.DeleteAsync(existing.Id);
             if (!deleted) return NotFound();
 
             return NoContent();
         }
 
-        [HttpPut("{id}")]
+
+        [HttpPut("latest")]
         [Authorize(Roles = "Customer")]
-        public async Task<ActionResult> Update(int id, OrderRequest request)
+        public async Task<ActionResult> UpdateLatest(OrderRequest request)
         {
-            var existing = await _repo.GetByIdAsync(id);
-            if (existing == null) return NotFound();
-
             var currentUserId = GetCurrentUserId();
-            if (existing.UserId != currentUserId) return Forbid();
-
+            var existing = await _repo.GetLatestOrderByUserAsync(currentUserId);
+            if (existing == null) return NotFound();
             existing.RestaurantName = request.RestaurantName;
             existing.Note = request.Notes;
             await _repo.UpdateAsync(existing);

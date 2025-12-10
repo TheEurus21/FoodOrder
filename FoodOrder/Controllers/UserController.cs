@@ -27,14 +27,6 @@ namespace FoodOrder.Controllers
             return users.Select(MapToResponse).ToList();
         }
 
-        [HttpGet("{id}")]
-        [Authorize]
-        public async Task<ActionResult<UserResponse>> GetById(int id)
-        {
-            var user = await _repo.GetByIdAsync(id);
-            if (user == null) return NotFound();
-            return MapToResponse(user);
-        }
 
         [HttpPost]
         [AllowAnonymous]
@@ -51,10 +43,10 @@ namespace FoodOrder.Controllers
             };
 
             var created = await _repo.AddAsync(user);
+            return Created($"api/users/{created.Id}", MapToResponse(created));
 
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, MapToResponse(created));
         }
-    
+
 
         [HttpPut("{id}")]
         [Authorize]

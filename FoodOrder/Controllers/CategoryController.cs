@@ -4,6 +4,7 @@ using FoodOrder.Models;
 using FoodOrder.Repositories.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FoodOrder.Controllers
 {
@@ -48,37 +49,33 @@ namespace FoodOrder.Controllers
             return Ok(MapToResponse(created));
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete]
         [Authorize(Roles = "Owner")]
-        public async Task<ActionResult> Delete(int id)
+        public async Task<ActionResult> Delete()
         {
-            var existing = await _repo.GetByIdAsync(id);
+            var currentUserId = GetCurrentUserId();
+            var existing = await _repo.GetByOwnerIdAsync(currentUserId);
             if (existing == null) return NotFound();
 
-            var currentUserId = GetCurrentUserId();
-            if (existing.UserId != currentUserId) return Forbid();
-
-            var deleted = await _repo.DeleteAsync(id);
+            var deleted = await _repo.DeleteAsync(currentUserId);
             if (!deleted) return NotFound();
 
             return NoContent();
         }
 
-        [HttpPut("{id}")]
+        [HttpPut]
         [Authorize(Roles = "Owner")]
-        public async Task<ActionResult> Update(int id, FoodCategoryRequest request)
+        public async Task<ActionResult> Update(FoodCategoryRequest request)
         {
-            var existing = await _repo.GetByIdAsync(id);
-            if (existing == null) return NotFound();
-
             var currentUserId = GetCurrentUserId();
-            if (existing.UserId != currentUserId) return Forbid();
+            var existingCategory = await _repo.GetByOwnerIdAsync(currentUserId);
 
-            existing.Name = request.Name;
+            if (existingCategory == null) return NotFound();
 
+            existingCategory.Name = request.Name;
             if (request.Foods != null && request.Foods.Any())
             {
-                existing.Foods = request.Foods.Select(f => new Food
+                existingCategory.Foods = request.Foods.Select(f => new Food
                 {
                     Name = f.Name,
                     Description = f.Description,
@@ -87,7 +84,7 @@ namespace FoodOrder.Controllers
                 }).ToList();
             }
 
-            await _repo.UpdateAsync(existing);
+            await _repo.UpdateAsync(existingCategory); 
             return NoContent();
         }
 

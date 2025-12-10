@@ -26,14 +26,7 @@ namespace FoodOrder.Controllers
             return foods.Select(MapToResponse).ToList();
 
         }
-        [HttpGet("{id}")]
-        [AllowAnonymous]
-        public async Task<ActionResult<FoodResponse>>GetById(int id)
-        {
-            var food=await _repo.GetByIdAsync(id);
-            if(food==null)return NotFound();
-            return MapToResponse(food);
-        }
+       
         [HttpPost("/api/categories/{categoryId}/foods")]
         [Authorize(Roles = "Owner")]
         public async Task<ActionResult<FoodResponse>> Create(int categoryId, FoodRequest request)
@@ -53,25 +46,22 @@ namespace FoodOrder.Controllers
                 Name = request.Name,
                 Description = request.Description,
                 Price = request.Price,
-                Type = request.Type,
-                FoodCategoryId = categoryId
             };
 
             var created = await _repo.AddAsync(food);
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, MapToResponse(created));
+            return Created($"api/foods/{created.Id}", MapToResponse(created));
+
         }
 
 
-        [HttpPut("{id}")]
+        [HttpPut]
         [Authorize(Roles = "Owner")]
-        public async Task<ActionResult> Update(int id, FoodRequest request)
+        public async Task<ActionResult> Update(FoodRequest request)
         {
-            var existing = await _repo.GetByIdAsync(id);
-            if (existing == null) return NotFound();
-
             var currentUserId = GetCurrentUserId();
-            if (existing.Category.Restaurant.UserId != currentUserId)
-                return Forbid();
+            var existing = await _repo.GetFoodByNameAndOwnerAsync(request.Name, currentUserId);
+
+            if (existing == null) return NotFound();
 
             existing.Name = request.Name;
             existing.Description = request.Description;
@@ -81,26 +71,21 @@ namespace FoodOrder.Controllers
             await _repo.UpdateAsync(existing);
             return NoContent();
         }
-
-        [HttpDelete("{id}")]
+        [HttpDelete("{foodName}")]
         [Authorize(Roles = "Owner")]
-        public async Task<ActionResult> Delete(int id)
+        public async Task<ActionResult> Delete(string foodName)
         {
-            var existing = await _repo.GetByIdAsync(id);
-            if (existing == null) return NotFound();
-
             var currentUserId = GetCurrentUserId();
 
-            if (existing.Category.Restaurant.UserId != currentUserId)
-                return Forbid();
+            var existing = await _repo.GetFoodByNameAndOwnerAsync(foodName, currentUserId);
+            if (existing == null) return NotFound();
 
-            var deleted = await _repo.DeleteAsync(id);
+  
+            var deleted = await _repo.DeleteAsync(existing.Id);
             if (!deleted) return NotFound();
 
             return NoContent();
         }
-
-
         private FoodResponse MapToResponse(Food food)
         {
             return new FoodResponse

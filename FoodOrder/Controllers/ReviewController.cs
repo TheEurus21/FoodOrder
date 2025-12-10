@@ -3,6 +3,7 @@ using FoodOrder.Models;
 using FoodOrder.Repositories.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 [ApiController]
 [Route("api/reviews")]
@@ -24,14 +25,7 @@ public class ReviewController : CommonController
         return reviews.Select(MapToResponse).ToList();
     }
 
-    [HttpGet("{id}")]
-    [AllowAnonymous] // 👀 Public can view a single review
-    public async Task<ActionResult<ReviewResponse>> GetById(int id)
-    {
-        var review = await _repo.GetByIdAsync(id);
-        if (review == null) return NotFound();
-        return MapToResponse(review);
-    }
+  
     [HttpPost]
     [Authorize(Roles = "Customer")]
     public async Task<ActionResult<ReviewResponse>> Create(ReviewRequest request)
@@ -49,32 +43,29 @@ public class ReviewController : CommonController
         return Ok(MapToResponse(created));
     }
 
-
-    [HttpDelete("{id}")]
+    [HttpDelete("latest")]
     [Authorize(Roles = "Customer")]
-    public async Task<ActionResult> Delete(int id)
+    public async Task<ActionResult> DeleteLatest()
     {
-        var existing = await _repo.GetByIdAsync(id);
+        var currentUserId = GetCurrentUserId();
+
+        var existing = await _repo.GetLatestReviewByUserAsync(currentUserId);
         if (existing == null) return NotFound();
 
-        var currentUserId = GetCurrentUserId();
-        if (existing.UserId != currentUserId) return Forbid(); 
-
-        var deleted = await _repo.DeleteAsync(id);
+        var deleted = await _repo.DeleteAsync(existing.Id);
         if (!deleted) return NotFound();
 
         return NoContent();
     }
-
-    [HttpPut("{id}")]
+    [HttpPut("{restaurantName}")]
     [Authorize(Roles = "Customer")]
-    public async Task<ActionResult> Update(int id, ReviewRequest request)
+    public async Task<ActionResult> Update(string restaurantName, ReviewRequest request)
     {
-        var existing = await _repo.GetByIdAsync(id);
+        var currentUserId = GetCurrentUserId();
+        var existing = await _repo.GetByRestaurantNameAndUserAsync(restaurantName, currentUserId);
+
         if (existing == null) return NotFound();
 
-        var currentUserId = GetCurrentUserId();
-        if (existing.UserId != currentUserId) return Forbid();
         existing.Rating = request.Rating;
         existing.Comment = request.Comment;
 

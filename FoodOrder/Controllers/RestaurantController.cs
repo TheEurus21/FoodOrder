@@ -6,6 +6,7 @@ using FoodOrder.DTOs.Restaurant;
 using FoodOrder.DTOs.Food;
 using FoodOrder.DTOs.FoodCategory;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 
 namespace FoodOrder.Controllers
 {
@@ -29,14 +30,6 @@ namespace FoodOrder.Controllers
             return restaurants.Select(MapToResponse).ToList();
         }
 
-        [HttpGet("{id}")]
-        [AllowAnonymous]
-        public async Task<ActionResult<RestaurantResponse>>GetById(int id)
-        {
-            var restaurant =await _repo.GetByIdAsync(id); 
-                if (restaurant == null) return NotFound();
-            return MapToResponse(restaurant);
-        }
         [HttpPost]
         [Authorize(Roles = "Owner")]
         public async Task<ActionResult<RestaurantResponse>> Create(RestaurantRequest request)
@@ -46,84 +39,50 @@ namespace FoodOrder.Controllers
             var restaurant = new Restaurant
             {
                 Name = request.Name,
-                Address = request.Address,
-                UserId = userId,
-                RestaurantCode = Guid.NewGuid()
+                Address = request.Address
             };
 
             var created = await _repo.AddAsync(restaurant);
+            return Created($"api/restaurants/{created.Id}", MapToResponse(created));
 
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, MapToResponse(created));
         }
-
-        [HttpPut("{id}")]
+        [HttpPut("{restaurantName}")]
         [Authorize(Roles = "Owner")]
-        public async Task<ActionResult> Update(int id, RestaurantRequest request)
+        public async Task<ActionResult> Update(string restaurantName, RestaurantRequest request)
         {
-            var existing = await _repo.GetByIdAsync(id);
+            var userId = GetCurrentUserId();
+            var existing = await _repo.GetByNameAndOwnerAsync(restaurantName, userId);
+
             if (existing == null) return NotFound();
 
-            var userId = GetCurrentUserId();
-            if (existing.UserId != userId) return Forbid();
-
-            existing.Name = request.Name;
             existing.Address = request.Address;
-            existing.Categories = request.Categories.Select(c => new FoodCategory
-            {
-                Name = c.Name,
-                Foods = c.Foods.Select(f => new Food
-                {
-                    Name = f.Name,
-                    Description = f.Description,
-                    Price = f.Price,
-                    Type = f.Type
-                }).ToList()
-            }).ToList();
+            existing.Name = request.Name;
+
             await _repo.UpdateAsync(existing);
             return NoContent();
         }
-
-        [HttpDelete("{id}")]
+        [HttpDelete("{restaurantName}")]
         [Authorize(Roles = "Owner")]
-        public async Task<ActionResult>Delete(int id)
+        public async Task<ActionResult> Delete(string restaurantName)
         {
-            var existing = await _repo.GetByIdAsync(id);
+            var userId = GetCurrentUserId();
+            var existing = await _repo.GetByNameAndOwnerAsync(restaurantName, userId);
+
             if (existing == null) return NotFound();
 
-            var userId = GetCurrentUserId();
-            if (existing.UserId != userId) return Forbid();
-
-            var deleted = await _repo.DeleteAsync(id);
+            var deleted = await _repo.DeleteAsync(existing.Id);
             if (!deleted) return NotFound();
 
             return NoContent();
         }
-        
+
         private RestaurantResponse MapToResponse(Restaurant restaurant)
         {
             return new RestaurantResponse
             {
                 Name = restaurant.Name,
                 Address = restaurant.Address,
-                Categories = restaurant.Categories.Select(c => new FoodCategoryResponse
-                {
-                    Name = c.Name,
-                    Foods = c.Foods.Select(f => new FoodResponse
-                    {
-                        Name = f.Name,
-                        Description = f.Description,
-                        Price = f.Price,
-                        Type = f.Type
-                    }).ToList()
-                }).ToList()
             };
         }
     }
 }
-
-
-
-    
-
-
-    
