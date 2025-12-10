@@ -9,6 +9,7 @@
         public int? FoodId { get; set; }
         public Food? Food { get; set; }
         public string FoodName {  get; set; }
+        public int RestaurantId {  get; set; }
         public int Rating {  get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
