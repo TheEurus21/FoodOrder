@@ -4,8 +4,8 @@ namespace FoodOrder.DTOs.Restaurant
 {
     public class RestaurantResponse
     {
-        public string Name { get; set; }
-        public string Address { get; set; }
-        public List<FoodCategoryResponse> Categories { get; set; } = new();
+        public string ?Name { get; set; }
+        public string ?Address { get; set; }
+      
     }
 }
