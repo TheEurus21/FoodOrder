@@ -4,12 +4,13 @@ using FoodOrder.DTOs.User;
 using FoodOrder.DTOs.Order;
 using FoodOrder.DTOs.Review;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FoodOrder.Controllers
 {
     [ApiController]
     [Route("api/users")]
-    public class UserController : ControllerBase
+    public class UserController : CommonController
     {
         private readonly ApplicationRepository<User> _repo;
 
@@ -19,6 +20,7 @@ namespace FoodOrder.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         public async Task<ActionResult<List<UserResponse>>> GetAll()
         {
             var users = await _repo.GetAllAsync();
@@ -26,6 +28,7 @@ namespace FoodOrder.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize]
         public async Task<ActionResult<UserResponse>> GetById(int id)
         {
             var user = await _repo.GetByIdAsync(id);
@@ -34,43 +37,48 @@ namespace FoodOrder.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<UserResponse>> Create(UserRequest userrequest)
+        [AllowAnonymous]
+        public async Task<ActionResult<UserResponse>> Create(UserRequest userRequest)
         {
             var user = new User
             {
-                Username = userrequest.Username,
-                Email = userrequest.Email,
-                Password = userrequest.Password, 
-                FullName = userrequest.FullName,
-                PhoneNumber = userrequest.PhoneNumber,
-                IsOwner = userrequest.IsOwner
+                Username = userRequest.Username,
+                Email = userRequest.Email,
+                Password = userRequest.Password,
+                FullName = userRequest.FullName,
+                PhoneNumber = userRequest.PhoneNumber,
+                Role = userRequest.IsOwner ? UserRole.Owner : UserRole.Customer
             };
 
             var created = await _repo.AddAsync(user);
 
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, MapToResponse(created));
         }
+    
 
         [HttpPut("{id}")]
+        [Authorize]
         public async Task<ActionResult> Update(int id, UserRequest request)
         {
             var existing = await _repo.GetByIdAsync(id);
             if (existing == null) return NotFound();
 
             var currentUserId = GetCurrentUserId();
-            if (existing.Id != currentUserId) return Forbid();
+            if (existing.Id != currentUserId) return Forbid(); 
 
             existing.Username = request.Username;
             existing.Email = request.Email;
             existing.FullName = request.FullName;
             existing.PhoneNumber = request.PhoneNumber;
-            existing.IsOwner = request.IsOwner;
+            existing.Role = request.IsOwner ? UserRole.Owner : UserRole.Customer; 
+
             await _repo.UpdateAsync(existing);
             return NoContent();
         }
 
 
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<ActionResult> Delete(int id)
         {
             var existing = await _repo.GetByIdAsync(id);
@@ -103,9 +111,6 @@ namespace FoodOrder.Controllers
             };
         }
 
-        private int GetCurrentUserId()
-        {
-            return int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier).Value);
-        }
+  
     }
 }

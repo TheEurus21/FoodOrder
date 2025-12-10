@@ -1,13 +1,15 @@
 ﻿using FoodOrder.DTOs.Order;
 using FoodOrder.Models;
 using FoodOrder.Repositories.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FoodOrder.Controllers
 {
     [ApiController]
     [Route("api/orders")]
-    public class OrderController : ControllerBase
+    [Authorize]
+    public class OrderController : CommonController
     {
         private readonly ApplicationRepository<Order> _repo;
 
@@ -16,12 +18,8 @@ namespace FoodOrder.Controllers
             _repo = repo;
         }
 
-        private int GetCurrentUserId()
-        {
-            return int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier).Value);
-        }
-
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<List<OrderResponse>>> GetAll()
         {
             var orders = await _repo.GetAllAsync();
@@ -29,6 +27,7 @@ namespace FoodOrder.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Customer")]
         public async Task<ActionResult<OrderResponse>> Create(OrderRequest request)
         {
             var order = new Order
@@ -45,6 +44,7 @@ namespace FoodOrder.Controllers
         }
 
             [HttpDelete("{id}")]
+        [Authorize(Roles = "Customer")]
         public async Task<ActionResult> Delete(int id)
         {
             var existing = await _repo.GetByIdAsync(id);
@@ -60,6 +60,7 @@ namespace FoodOrder.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Customer")]
         public async Task<ActionResult> Update(int id, OrderRequest request)
         {
             var existing = await _repo.GetByIdAsync(id);

@@ -1,11 +1,13 @@
 ﻿using FoodOrder.DTOs.Review;
 using FoodOrder.Models;
 using FoodOrder.Repositories.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("api/reviews")]
-public class ReviewController : ControllerBase
+[Authorize]
+public class ReviewController : CommonController
 {
     private readonly ApplicationRepository<Review> _repo;
 
@@ -15,13 +17,23 @@ public class ReviewController : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<ActionResult<List<ReviewResponse>>> GetAll()
     {
         var reviews = await _repo.GetAllAsync();
         return reviews.Select(MapToResponse).ToList();
     }
 
+    [HttpGet("{id}")]
+    [AllowAnonymous] // 👀 Public can view a single review
+    public async Task<ActionResult<ReviewResponse>> GetById(int id)
+    {
+        var review = await _repo.GetByIdAsync(id);
+        if (review == null) return NotFound();
+        return MapToResponse(review);
+    }
     [HttpPost]
+    [Authorize(Roles = "Customer")]
     public async Task<ActionResult<ReviewResponse>> Create(ReviewRequest request)
     {
         var review = new Review
@@ -39,6 +51,7 @@ public class ReviewController : ControllerBase
 
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Customer")]
     public async Task<ActionResult> Delete(int id)
     {
         var existing = await _repo.GetByIdAsync(id);
@@ -54,6 +67,7 @@ public class ReviewController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Customer")]
     public async Task<ActionResult> Update(int id, ReviewRequest request)
     {
         var existing = await _repo.GetByIdAsync(id);
@@ -78,8 +92,4 @@ public class ReviewController : ControllerBase
         };
     }
 
-    private int GetCurrentUserId()
-    {
-        return int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier).Value);
-    }
 }

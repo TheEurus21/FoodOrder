@@ -1,17 +1,18 @@
-﻿
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using FoodOrder.Models;
 using FoodOrder.DTOs;
 using FoodOrder.Repositories.Common;
 using FoodOrder.DTOs.Restaurant;
 using FoodOrder.DTOs.Food;
 using FoodOrder.DTOs.FoodCategory;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FoodOrder.Controllers
 {
     [ApiController]
     [Route("api/restaurants")]
-    public class RestaurantController : ControllerBase
+    [Authorize]
+    public class RestaurantController : CommonController
     {
         private readonly ApplicationRepository<Restaurant> _repo;
 
@@ -19,11 +20,9 @@ namespace FoodOrder.Controllers
         {
             _repo = repo;
         }
-        private int GetCurrentUserId()
-        {
-            return int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier).Value);
-        }
+        
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<List<RestaurantResponse>>> GetAll()
         {
             var restaurants = await _repo.GetAllAsync();
@@ -31,6 +30,7 @@ namespace FoodOrder.Controllers
         }
 
         [HttpGet("{id}")]
+        [AllowAnonymous]
         public async Task<ActionResult<RestaurantResponse>>GetById(int id)
         {
             var restaurant =await _repo.GetByIdAsync(id); 
@@ -38,6 +38,7 @@ namespace FoodOrder.Controllers
             return MapToResponse(restaurant);
         }
         [HttpPost]
+        [Authorize(Roles = "Owner")]
         public async Task<ActionResult<RestaurantResponse>> Create(RestaurantRequest request)
         {
             var userId = GetCurrentUserId();
@@ -56,10 +57,15 @@ namespace FoodOrder.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Owner")]
         public async Task<ActionResult> Update(int id, RestaurantRequest request)
         {
             var existing = await _repo.GetByIdAsync(id);
             if (existing == null) return NotFound();
+
+            var userId = GetCurrentUserId();
+            if (existing.UserId != userId) return Forbid();
+
             existing.Name = request.Name;
             existing.Address = request.Address;
             existing.Categories = request.Categories.Select(c => new FoodCategory
@@ -78,6 +84,7 @@ namespace FoodOrder.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Owner")]
         public async Task<ActionResult>Delete(int id)
         {
             var existing = await _repo.GetByIdAsync(id);

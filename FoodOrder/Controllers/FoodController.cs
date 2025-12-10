@@ -3,12 +3,14 @@ using FoodOrder.Models;
 using FoodOrder.Repositories.Common;
 using FoodOrder.DTOs.Food;
 using Azure.Core;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FoodOrder.Controllers
 {
     [ApiController]
     [Route("api/food")]
-    public class FoodController : ControllerBase
+
+    public class FoodController : CommonController
     {
         private readonly ApplicationRepository<Food> _repo;
         public FoodController(ApplicationRepository<Food> repo)
@@ -16,11 +18,8 @@ namespace FoodOrder.Controllers
             _repo = repo;
         }
 
-        private int GetCurrentUserId()
-        {
-            return int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier).Value);
-        }
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<List<FoodResponse>>> GetAll()
         {
             var foods=await _repo.GetAllAsync();
@@ -28,6 +27,7 @@ namespace FoodOrder.Controllers
 
         }
         [HttpGet("{id}")]
+        [AllowAnonymous]
         public async Task<ActionResult<FoodResponse>>GetById(int id)
         {
             var food=await _repo.GetByIdAsync(id);
@@ -35,6 +35,7 @@ namespace FoodOrder.Controllers
             return MapToResponse(food);
         }
         [HttpPost("/api/categories/{categoryId}/foods")]
+        [Authorize(Roles = "Owner")]
         public async Task<ActionResult<FoodResponse>> Create(int categoryId, FoodRequest request)
         {
             var currentUserId = GetCurrentUserId();
@@ -62,6 +63,7 @@ namespace FoodOrder.Controllers
 
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Owner")]
         public async Task<ActionResult> Update(int id, FoodRequest request)
         {
             var existing = await _repo.GetByIdAsync(id);
@@ -81,6 +83,7 @@ namespace FoodOrder.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Owner")]
         public async Task<ActionResult> Delete(int id)
         {
             var existing = await _repo.GetByIdAsync(id);

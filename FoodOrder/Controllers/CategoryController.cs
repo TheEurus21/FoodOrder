@@ -2,13 +2,15 @@
 using FoodOrder.DTOs.FoodCategory;
 using FoodOrder.Models;
 using FoodOrder.Repositories.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FoodOrder.Controllers
 {
     [ApiController]
     [Route("api/categories")]
-    public class CategoryController : ControllerBase
+
+    public class CategoryController : CommonController
     {
         private readonly ApplicationRepository<FoodCategory> _repo;
 
@@ -17,12 +19,8 @@ namespace FoodOrder.Controllers
             _repo = repo;
         }
 
-        private int GetCurrentUserId()
-        {
-            return int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier).Value);
-        }
-
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<List<FoodCategoryResponse>>> GetAll()
         {
             var categories = await _repo.GetAllAsync();
@@ -30,6 +28,7 @@ namespace FoodOrder.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Owner")]
         public async Task<ActionResult<FoodCategoryResponse>> Create(FoodCategoryRequest request)
         {
             var category = new FoodCategory
@@ -50,6 +49,7 @@ namespace FoodOrder.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Owner")]
         public async Task<ActionResult> Delete(int id)
         {
             var existing = await _repo.GetByIdAsync(id);
@@ -65,6 +65,7 @@ namespace FoodOrder.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Owner")]
         public async Task<ActionResult> Update(int id, FoodCategoryRequest request)
         {
             var existing = await _repo.GetByIdAsync(id);
