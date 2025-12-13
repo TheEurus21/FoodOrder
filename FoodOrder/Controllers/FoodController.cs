@@ -26,7 +26,15 @@ namespace FoodOrder.Controllers
             return foods.Select(MapToResponse).ToList();
 
         }
-       
+        [HttpGet("{id}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<FoodResponse>>GetById(int id)
+        {
+            var existing= await _repo.GetByIdAsync(id);
+            if(existing==null)return NotFound();  
+            return Ok(existing);
+        }
+  
         [HttpPost("/api/categories/{categoryId}/foods")]
         [Authorize(Roles = "Owner")]
         public async Task<ActionResult<FoodResponse>> Create(int categoryId, FoodRequest request)
@@ -52,38 +60,32 @@ namespace FoodOrder.Controllers
             return Created($"api/foods/{created.Id}", MapToResponse(created));
 
         }
-
-
-        [HttpPut]
+        [HttpPut("{id}")]
         [Authorize(Roles = "Owner")]
-        public async Task<ActionResult> Update(FoodRequest request)
+        public async Task<ActionResult> Update(int id, FoodRequest request)
         {
             var currentUserId = GetCurrentUserId();
-            var existing = await _repo.GetFoodByNameAndOwnerAsync(request.Name, currentUserId);
-
+            var existing = await _repo.GetByIdAsync(id);
             if (existing == null) return NotFound();
-
+            if (existing.Category.Restaurant.UserId != currentUserId)return Forbid();
             existing.Name = request.Name;
             existing.Description = request.Description;
             existing.Price = request.Price;
             existing.Type = request.Type;
-
             await _repo.UpdateAsync(existing);
             return NoContent();
         }
-        [HttpDelete("{foodName}")]
+
+        [HttpDelete("{id}")]
         [Authorize(Roles = "Owner")]
-        public async Task<ActionResult> Delete(string foodName)
+        public async Task<ActionResult> Delete(int id)
         {
             var currentUserId = GetCurrentUserId();
-
-            var existing = await _repo.GetFoodByNameAndOwnerAsync(foodName, currentUserId);
-            if (existing == null) return NotFound();
-
-  
-            var deleted = await _repo.DeleteAsync(existing.Id);
+            var existingFood=await _repo.GetByIdAsync(id);
+            if(existingFood == null) return NotFound();
+            if (existingFood.Category.Restaurant.UserId != currentUserId)return Forbid();
+            var deleted = await _repo.DeleteAsync(id);
             if (!deleted) return NotFound();
-
             return NoContent();
         }
         private FoodResponse MapToResponse(Food food)

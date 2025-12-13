@@ -26,7 +26,15 @@ namespace FoodOrder.Controllers
             var orders = await _repo.GetAllAsync();
             return Ok(orders.Select(MapToResponse).ToList());
         }
+        [HttpGet("{id}")]
+        [Authorize(Roles ="Admin")]
+        public async Task<ActionResult<OrderResponse>> GetById(int id)
+        {
+            var existing=await _repo.GetByIdAsync(id);
+            if (existing == null) return NotFound();
+            return Ok(existing);
 
+        }
         [HttpPost]
         [Authorize(Roles = "Customer")]
         public async Task<ActionResult<OrderResponse>> Create(OrderRequest request)
@@ -43,36 +51,34 @@ namespace FoodOrder.Controllers
             var created = await _repo.AddAsync(order);
             return Ok(MapToResponse(created));
         }
-        [HttpDelete("latest")]
+
+        [HttpPut("{id}")]
         [Authorize(Roles = "Customer")]
-        public async Task<ActionResult> DeleteLatest()
+        public async Task<ActionResult> Update(int id, OrderRequest request)
         {
             var currentUserId = GetCurrentUserId();
-            var existing = await _repo.GetLatestOrderByUserAsync(currentUserId);
+            var existingOrder = await _repo.GetByIdAsync(id);
+            if (existingOrder == null) return NotFound();
+            if (existingOrder.UserId != currentUserId) return Forbid();
 
-            if (existing == null) return NotFound();
+            existingOrder.Note = request.Notes;
+            await _repo.UpdateAsync(existingOrder);
+            return NoContent();
+        }
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Customer")]
+        public async Task<ActionResult> Delete(int id)
+        {
+            var currentUserId = GetCurrentUserId();
+            var existingOrder = await _repo.GetByIdAsync(id);
+            if(existingOrder == null) return NotFound();
+            if (existingOrder.UserId != currentUserId) return Forbid();
 
-            var deleted = await _repo.DeleteAsync(existing.Id);
+            var deleted = await _repo.DeleteAsync(id);
             if (!deleted) return NotFound();
 
             return NoContent();
         }
-
-
-        [HttpPut("latest")]
-        [Authorize(Roles = "Customer")]
-        public async Task<ActionResult> UpdateLatest(OrderRequest request)
-        {
-            var currentUserId = GetCurrentUserId();
-            var existing = await _repo.GetLatestOrderByUserAsync(currentUserId);
-            if (existing == null) return NotFound();
-            existing.RestaurantName = request.RestaurantName;
-            existing.Note = request.Notes;
-            await _repo.UpdateAsync(existing);
-            return NoContent();
-        }
-
-
         private OrderResponse MapToResponse(Order order)
         {
             return new OrderResponse

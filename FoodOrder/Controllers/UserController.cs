@@ -20,13 +20,24 @@ namespace FoodOrder.Controllers
         }
 
         [HttpGet]
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<List<UserResponse>>> GetAll()
         {
             var users = await _repo.GetAllAsync();
             return users.Select(MapToResponse).ToList();
         }
+        [HttpGet("{id}")]
+        [Authorize]
+        public async Task<ActionResult<UserResponse>>GetById(int id)
+        {
 
+            var existing = await _repo.GetByIdAsync(id);
+
+            if (existing == null)
+                return NotFound();
+
+            return Ok(existing);
+        }
 
         [HttpPost]
         [AllowAnonymous]
@@ -46,7 +57,6 @@ namespace FoodOrder.Controllers
             return Created($"api/users/{created.Id}", MapToResponse(created));
 
         }
-
 
         [HttpPut("{id}")]
         [Authorize]

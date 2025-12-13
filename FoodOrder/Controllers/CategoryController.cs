@@ -27,6 +27,17 @@ namespace FoodOrder.Controllers
             var categories = await _repo.GetAllAsync();
             return Ok(categories.Select(MapToResponse).ToList());
         }
+        [HttpGet("{id}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<FoodCategory>> GetById(int id)
+        {
+            var existing = await _repo.GetByIdAsync(id);
+
+            if (existing == null)
+                return NotFound();
+
+            return Ok(existing);
+        }
 
         [HttpPost]
         [Authorize(Roles = "Owner")]
@@ -48,43 +59,31 @@ namespace FoodOrder.Controllers
             var created = await _repo.AddAsync(category);
             return Ok(MapToResponse(created));
         }
-
-        [HttpDelete]
+        [HttpPut("{id}")]
         [Authorize(Roles = "Owner")]
-        public async Task<ActionResult> Delete()
+        public async Task<ActionResult> Update(int id, FoodCategoryRequest request)
         {
             var currentUserId = GetCurrentUserId();
-            var existing = await _repo.GetByOwnerIdAsync(currentUserId);
-            if (existing == null) return NotFound();
-
-            var deleted = await _repo.DeleteAsync(currentUserId);
-            if (!deleted) return NotFound();
-
+            var existingCategory = await _repo.GetByIdAsync(id);
+            if (existingCategory == null) return NotFound();
+            if (existingCategory.Restaurant.UserId != currentUserId)
+                return Forbid();
+            existingCategory.Name = request.Name;
+            existingCategory.UpdatedAt = DateTime.UtcNow;
+            await _repo.UpdateAsync(existingCategory);
             return NoContent();
         }
-
-        [HttpPut]
+        [HttpDelete("{id}")]
         [Authorize(Roles = "Owner")]
-        public async Task<ActionResult> Update(FoodCategoryRequest request)
+        public async Task<ActionResult> Delete(int id)
         {
             var currentUserId = GetCurrentUserId();
-            var existingCategory = await _repo.GetByOwnerIdAsync(currentUserId);
-
+            var existingCategory = await _repo.GetByIdAsync(id);
             if (existingCategory == null) return NotFound();
-
-            existingCategory.Name = request.Name;
-            if (request.Foods != null && request.Foods.Any())
-            {
-                existingCategory.Foods = request.Foods.Select(f => new Food
-                {
-                    Name = f.Name,
-                    Description = f.Description,
-                    Price = f.Price,
-                    Type = f.Type
-                }).ToList();
-            }
-
-            await _repo.UpdateAsync(existingCategory); 
+            if (existingCategory.Restaurant.UserId != currentUserId)
+                return Forbid();
+            var deleted = await _repo.DeleteAsync(id);
+            if (!deleted) return NotFound();
             return NoContent();
         }
 

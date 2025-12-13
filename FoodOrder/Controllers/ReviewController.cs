@@ -24,6 +24,17 @@ public class ReviewController : CommonController
         var reviews = await _repo.GetAllAsync();
         return reviews.Select(MapToResponse).ToList();
     }
+    [HttpGet("{id}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ReviewResponse>>GetById(int id)
+    {
+        var existing = await _repo.GetByIdAsync(id);
+
+        if (existing == null)return NotFound();
+
+        return Ok(existing);
+
+    }
 
   
     [HttpPost]
@@ -32,7 +43,7 @@ public class ReviewController : CommonController
     {
         var review = new Review
         {
-            FoodName = request.FoodName,
+            FoodId = request.FoodId,
             Rating = request.Rating,
             Comment = request.Comment,
             UserId = GetCurrentUserId(),   
@@ -40,46 +51,48 @@ public class ReviewController : CommonController
         };
 
         var created = await _repo.AddAsync(review);
-        return Ok(MapToResponse(created));
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, MapToResponse(created));
     }
 
-    [HttpDelete("latest")]
+    [HttpPut("{id}")]
     [Authorize(Roles = "Customer")]
-    public async Task<ActionResult> DeleteLatest()
+    public async Task<ActionResult> Update(int id, ReviewRequest request)
+    {
+        var currentUserId = GetCurrentUserId();
+        var existingReview = await _repo.GetByIdAsync(id);
+        if (existingReview == null) return NotFound();
+        if (existingReview.UserId != currentUserId)
+            return Forbid();
+        existingReview.FoodId = request.FoodId;
+        existingReview.Rating = request.Rating;
+        existingReview.Comment = request.Comment;
+        await _repo.UpdateAsync(existingReview);
+        return NoContent();
+    }
+
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Customer")]
+    public async Task<ActionResult> Delete(int id)
     {
         var currentUserId = GetCurrentUserId();
 
-        var existing = await _repo.GetLatestReviewByUserAsync(currentUserId);
-        if (existing == null) return NotFound();
-
-        var deleted = await _repo.DeleteAsync(existing.Id);
+        var existingReview = await _repo.GetByIdAsync(id);
+        if (existingReview == null) return NotFound();
+        if(existingReview.UserId != currentUserId) return Forbid();
+        var deleted = await _repo.DeleteAsync(id);
         if (!deleted) return NotFound();
-
         return NoContent();
     }
-    [HttpPut("{restaurantName}")]
-    [Authorize(Roles = "Customer")]
-    public async Task<ActionResult> Update(string restaurantName, ReviewRequest request)
-    {
-        var currentUserId = GetCurrentUserId();
-        var existing = await _repo.GetByRestaurantNameAndUserAsync(restaurantName, currentUserId);
-
-        if (existing == null) return NotFound();
-
-        existing.Rating = request.Rating;
-        existing.Comment = request.Comment;
-
-        await _repo.UpdateAsync(existing);
-        return NoContent();
-    }
-
     private ReviewResponse MapToResponse(Review review)
     {
         return new ReviewResponse
         {
-            Comment = review.Comment,
             FoodId = review.FoodId,
-            Rating = review.Rating
+            Rating = review.Rating,
+            Comment = review.Comment,
+            UserId = review.UserId,
+            CreatedAt = review.CreatedAt
         };
     }
 
