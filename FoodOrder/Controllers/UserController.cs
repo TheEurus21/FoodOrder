@@ -1,61 +1,80 @@
-﻿using FoodOrder.Models;
-using FoodOrder.Repositories.Common;
-using FoodOrder.DTOs.User;
-using FoodOrder.DTOs.Order;
-using FoodOrder.DTOs.Review;
-using Microsoft.AspNetCore.Mvc;
+﻿using FoodOrder.Application.DTOs.Order;
+using FoodOrder.Application.DTOs.Review;
+using FoodOrder.Application.DTOs.User;
+using FoodOrder.Application.Interfaces;
+using FoodOrder.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Distributed;
 
-namespace FoodOrder.Controllers
+namespace FoodOrder.API.Controllers
 {
     [ApiController]
     [Route("api/users")]
-    public class UserController : CommonController
+    public class UserController : ControllerBase
     {
-        private readonly ApplicationRepository<User> _repo;
+        private readonly IUserRepository _repo;
+        private readonly IDistributedCache _cache;
 
-        public UserController(ApplicationRepository<User> repo)
+        public UserController(IUserRepository repo, IDistributedCache cache)
         {
             _repo = repo;
+            _cache = cache;
         }
 
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<List<UserResponse>>> GetAll()
         {
+            const string cacheKey = "users_all";
+
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (cachedData != null)
+            {
+                var cachedUsers = System.Text.Json.JsonSerializer
+                    .Deserialize<List<UserResponse>>(cachedData);
+                return Ok(cachedUsers);
+            }
+
             var users = await _repo.GetAllAsync();
-            return users.Select(MapToResponse).ToList();
+            var response = users.Select(MapToResponse).ToList();
+
+            var serialized = System.Text.Json.JsonSerializer.Serialize(response);
+            await _cache.SetStringAsync(cacheKey, serialized, new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+            });
+            return Ok(response);
         }
+
         [HttpGet("{id}")]
         [Authorize]
-        public async Task<ActionResult<UserResponse>>GetById(int id)
+        public async Task<ActionResult<UserResponse>> GetById(int id)
         {
-
             var existing = await _repo.GetByIdAsync(id);
+            if (existing == null) return NotFound();
 
-            if (existing == null)
-                return NotFound();
-
-            return Ok(existing);
+            return Ok(MapToResponse(existing));
         }
 
         [HttpPost]
         [AllowAnonymous]
         public async Task<ActionResult<UserResponse>> Create(UserRequest userRequest)
         {
+            var passwordHasher = new PasswordHasher<User>();
             var user = new User
             {
                 Username = userRequest.Username,
                 Email = userRequest.Email,
-                Password = userRequest.Password,
                 FullName = userRequest.FullName,
                 PhoneNumber = userRequest.PhoneNumber,
-                Role = userRequest.IsOwner ? UserRole.Owner : UserRole.Customer
+                Role = userRequest.IsOwner ? UserRole.Owner : UserRole.Customer,
+                PasswordHash = passwordHasher.HashPassword(new User(), userRequest.Password)
             };
 
             var created = await _repo.AddAsync(user);
             return Created($"api/users/{created.Id}", MapToResponse(created));
-
         }
 
         [HttpPut("{id}")]
@@ -66,18 +85,23 @@ namespace FoodOrder.Controllers
             if (existing == null) return NotFound();
 
             var currentUserId = GetCurrentUserId();
-            if (existing.Id != currentUserId) return Forbid(); 
+            if (existing.Id != currentUserId) return Forbid();
 
             existing.Username = request.Username;
             existing.Email = request.Email;
             existing.FullName = request.FullName;
             existing.PhoneNumber = request.PhoneNumber;
-            existing.Role = request.IsOwner ? UserRole.Owner : UserRole.Customer; 
+            existing.Role = request.IsOwner ? UserRole.Owner : UserRole.Customer;
+
+            if (!string.IsNullOrEmpty(request.Password))
+            {
+                var passwordHasher = new PasswordHasher<User>();
+                existing.PasswordHash = passwordHasher.HashPassword(existing, request.Password);
+            }
 
             await _repo.UpdateAsync(existing);
             return NoContent();
         }
-
 
         [HttpDelete("{id}")]
         [Authorize]
@@ -113,6 +137,9 @@ namespace FoodOrder.Controllers
             };
         }
 
-  
+        private int GetCurrentUserId()
+        {
+            return int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        }
     }
 }

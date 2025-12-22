@@ -1,31 +1,54 @@
-﻿using FoodOrder.DTOs.Food;
-using FoodOrder.DTOs.FoodCategory;
-using FoodOrder.Models;
-using FoodOrder.Repositories.Common;
+﻿using Azure;
+using FoodOrder.Application.DTOs.FoodCategory;
+using FoodOrder.Domain.Entities;
+using FoodOrder.Application.DTOs.Food;
+using FoodOrder.Application.DTOs.Restaurant;
+using FoodOrder.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection.KeyManagement.Internal;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 
-namespace FoodOrder.Controllers
+namespace FoodOrder.API.Controllers
 {
     [ApiController]
     [Route("api/categories")]
 
     public class CategoryController : CommonController
     {
-        private readonly ApplicationRepository<FoodCategory> _repo;
-
-        public CategoryController(ApplicationRepository<FoodCategory> repo)
+        private readonly ICategoryRepository _repo;
+        private readonly IDistributedCache _cache;
+        public CategoryController(ICategoryRepository repo, IDistributedCache cache)
         {
             _repo = repo;
+            _cache = cache;
         }
 
         [HttpGet]
         [AllowAnonymous]
         public async Task<ActionResult<List<FoodCategoryResponse>>> GetAll()
         {
+            const string cacheKey = "categories_all";
+
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (cachedData != null)
+            {
+                var cachedCategories = System.Text.Json.JsonSerializer
+                    .Deserialize<List<FoodCategoryResponse>>(cachedData);
+                return Ok(cachedCategories);
+            }
+
             var categories = await _repo.GetAllAsync();
-            return Ok(categories.Select(MapToResponse).ToList());
+            var response = categories.Select(MapToResponse).ToList();
+
+            var serialized = System.Text.Json.JsonSerializer.Serialize(response);
+            await _cache.SetStringAsync(cacheKey, serialized, new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+            });
+
+            return Ok(response);
         }
         [HttpGet("{id}")]
         [AllowAnonymous]

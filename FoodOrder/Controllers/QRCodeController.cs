@@ -3,7 +3,7 @@ using QRCoder;
 using System.Drawing;
 using System.Drawing.Imaging;
 
-namespace FoodOrder.Controllers
+namespace FoodOrder.API.Controllers
 {
     [ApiController]
     [Route("api/qrcode")]

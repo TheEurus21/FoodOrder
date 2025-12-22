@@ -1,36 +1,52 @@
-﻿using FoodOrder.DTOs.Order;
-using FoodOrder.Models;
-using FoodOrder.Repositories.Common;
+﻿using FoodOrder.Application.DTOs.Order;
+using FoodOrder.Domain.Entities;
+using FoodOrder.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 
-namespace FoodOrder.Controllers
+namespace FoodOrder.API.Controllers
 {
     [ApiController]
     [Route("api/orders")]
     [Authorize]
     public class OrderController : CommonController
     {
-        private readonly ApplicationRepository<Order> _repo;
-
-        public OrderController(ApplicationRepository<Order> repo)
+        private readonly IOrderRepository _repo;
+        private readonly IDistributedCache _cache;
+        public OrderController(IOrderRepository repo, IDistributedCache cache)
         {
             _repo = repo;
+            _cache = cache;
         }
 
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<List<OrderResponse>>> GetAll()
         {
+            const string cacheKey = "orders_all";
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (cachedData != null)
+            {
+                var cachedOrders = System.Text.Json.JsonSerializer.
+                    Deserialize<List<OrderResponse>>(cachedData);
+                return Ok(cachedOrders);
+            }
             var orders = await _repo.GetAllAsync();
-            return Ok(orders.Select(MapToResponse).ToList());
+            var response = orders.Select(MapToResponse).ToList();
+            var serialized = System.Text.Json.JsonSerializer.Serialize(response);
+            await _cache.SetStringAsync(cacheKey, serialized, new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+            });
+            return Ok(response);
         }
         [HttpGet("{id}")]
-        [Authorize(Roles ="Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<OrderResponse>> GetById(int id)
         {
-            var existing=await _repo.GetByIdAsync(id);
+            var existing = await _repo.GetByIdAsync(id);
             if (existing == null) return NotFound();
             return Ok(existing);
 
@@ -42,10 +58,10 @@ namespace FoodOrder.Controllers
             var order = new Order
             {
                 RestaurantName = request.RestaurantName,
-                UserId = GetCurrentUserId(), 
+                UserId = GetCurrentUserId(),
                 CreatedAt = DateTime.UtcNow,
-                Status = OrderStatus.Pending, 
-                                              
+                Status = OrderStatus.Pending,
+
             };
 
             var created = await _repo.AddAsync(order);
@@ -71,7 +87,7 @@ namespace FoodOrder.Controllers
         {
             var currentUserId = GetCurrentUserId();
             var existingOrder = await _repo.GetByIdAsync(id);
-            if(existingOrder == null) return NotFound();
+            if (existingOrder == null) return NotFound();
             if (existingOrder.UserId != currentUserId) return Forbid();
 
             var deleted = await _repo.DeleteAsync(id);
@@ -83,8 +99,8 @@ namespace FoodOrder.Controllers
         {
             return new OrderResponse
             {
-                Status = order.Status.ToString(), 
-                CreatedAt = order.CreatedAt       
+                Status = order.Status.ToString(),
+                CreatedAt = order.CreatedAt
             };
         }
     }
