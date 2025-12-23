@@ -12,7 +12,7 @@
         public OrderStatus Status { get; set; } = OrderStatus.Pending;
         public int UserId { get; set; }
         public User User { get; set; }
-        public string Note { get; set; }
+        public string Notes { get; set; }
         public decimal TotalPrice => Items.Sum(i => i.Quantity * i.Price);
     }
 

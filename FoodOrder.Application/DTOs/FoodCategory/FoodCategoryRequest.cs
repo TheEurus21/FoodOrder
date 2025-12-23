@@ -7,7 +7,7 @@ namespace FoodOrder.Application.DTOs.FoodCategory
     {
         [Required(ErrorMessage = "Name must be entered")]
         public string? Name { get; set; }
-        public List<FoodRequest> Foods { get; set; } = new();
+        public int RestaurantId {  get; set; }
 
     }
 }

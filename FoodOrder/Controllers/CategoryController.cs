@@ -19,10 +19,13 @@ namespace FoodOrder.API.Controllers
     {
         private readonly ICategoryRepository _repo;
         private readonly IDistributedCache _cache;
-        public CategoryController(ICategoryRepository repo, IDistributedCache cache)
+        private readonly IRestaurantRepository _restaurantRepo;
+
+        public CategoryController(ICategoryRepository repo, IDistributedCache cache, IRestaurantRepository restaurantRepo)
         {
             _repo = repo;
             _cache = cache;
+            _restaurantRepo = restaurantRepo;
         }
 
         [HttpGet]
@@ -55,32 +58,27 @@ namespace FoodOrder.API.Controllers
         public async Task<ActionResult<FoodCategory>> GetById(int id)
         {
             var existing = await _repo.GetByIdAsync(id);
-
-            if (existing == null)
-                return NotFound();
-
-            return Ok(existing);
+            if (existing == null) return NotFound(); 
+            return Ok(MapToResponse(existing));
         }
 
         [HttpPost]
         [Authorize(Roles = "Owner")]
         public async Task<ActionResult<FoodCategoryResponse>> Create(FoodCategoryRequest request)
         {
+            var restaurant = await _restaurantRepo.GetByIdAsync(request.RestaurantId);
+            if (restaurant == null) return BadRequest("Invalid RestaurantId");
+
             var category = new FoodCategory
             {
                 Name = request.Name,
                 UserId = GetCurrentUserId(),
-                Foods = request.Foods.Select(f => new Food
-                {
-                    Name = f.Name,
-                    Description = f.Description,
-                    Price = f.Price,
-                    Type = f.Type
-                }).ToList()
+                RestaurantId = request.RestaurantId
             };
 
             var created = await _repo.AddAsync(category);
-            return Ok(MapToResponse(created));
+            var response = MapToResponse(created);
+            return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
         }
         [HttpPut("{id}")]
         [Authorize(Roles = "Owner")]
@@ -114,15 +112,19 @@ namespace FoodOrder.API.Controllers
         {
             return new FoodCategoryResponse
             {
+                Id = category.Id,
                 Name = category.Name,
-                Foods = category.Foods.Select(f => new FoodResponse
-                {
-                    Name = f.Name,
-                    Description = f.Description,
-                    Price = f.Price,
-                    Type = f.Type
-                }).ToList()
+                RestaurantId = category.RestaurantId,
+               Foods = category.Foods.Select(f => new FoodResponse 
+               {
+                   Id = f.Id,
+                   Name = f.Name,
+                   Description = f.Description,
+                   Price = f.Price, 
+                   Type = f.Type, 
+                   CategoryId = f.FoodCategoryId
+               }).ToList() 
             };
-        }
+         }
     }
 }

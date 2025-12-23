@@ -10,7 +10,6 @@
         public int RestaurantId { get; set; }
         public Restaurant Restaurant { get; set; }
 
-
         public ICollection<Food> Foods { get; set; } = new List<Food>();
 
 

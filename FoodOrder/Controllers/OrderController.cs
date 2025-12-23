@@ -52,7 +52,7 @@ namespace FoodOrder.API.Controllers
 
         }
         [HttpPost]
-        [Authorize(Roles = "Customer")]
+        [AllowAnonymous]
         public async Task<ActionResult<OrderResponse>> Create(OrderRequest request)
         {
             var order = new Order
@@ -61,7 +61,7 @@ namespace FoodOrder.API.Controllers
                 UserId = GetCurrentUserId(),
                 CreatedAt = DateTime.UtcNow,
                 Status = OrderStatus.Pending,
-
+                Notes = request.Notes
             };
 
             var created = await _repo.AddAsync(order);
@@ -77,7 +77,7 @@ namespace FoodOrder.API.Controllers
             if (existingOrder == null) return NotFound();
             if (existingOrder.UserId != currentUserId) return Forbid();
 
-            existingOrder.Note = request.Notes;
+            existingOrder.Notes = request.Notes;
             await _repo.UpdateAsync(existingOrder);
             return NoContent();
         }

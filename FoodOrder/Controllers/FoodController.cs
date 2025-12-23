@@ -17,10 +17,12 @@ namespace FoodOrder.API.Controllers
     {
         private readonly IFoodRepository _repo;
         private readonly IDistributedCache _cache;
-        public FoodController(IFoodRepository repo, IDistributedCache cache)
+        private readonly ICategoryRepository _categoryRepo;
+        public FoodController(IFoodRepository repo, IDistributedCache cache, ICategoryRepository categoryRepo)
         {
             _repo = repo;
             _cache = cache;
+            _categoryRepo = categoryRepo;
         }
 
         [HttpGet]
@@ -56,25 +58,21 @@ namespace FoodOrder.API.Controllers
             return Ok(existing);
         }
 
-        [HttpPost("/api/categories/{categoryId}/foods")]
+        [HttpPost("{categoryId}/foods")]
         [Authorize(Roles = "Owner")]
         public async Task<ActionResult<FoodResponse>> Create(int categoryId, FoodRequest request)
         {
             var currentUserId = GetCurrentUserId();
-            var foods = await _repo.GetAllAsync();
-            var category = foods
-                .Select(f => f.Category)
-                .FirstOrDefault(c => c.Id == categoryId);
-
-            if (category == null) return NotFound();
-            if (category.Restaurant.UserId != currentUserId)
-                return Forbid();
-
-            var food = new Food
+            var category = await _categoryRepo.GetByIdAsync(categoryId); 
+            if (category == null) return NotFound(); 
+            if (category.Restaurant.UserId != currentUserId) return Forbid(); 
+            var food = new Food 
             {
-                Name = request.Name,
+                Name = request.Name, 
                 Description = request.Description,
                 Price = request.Price,
+                Type = request.Type,
+                FoodCategoryId = categoryId 
             };
 
             var created = await _repo.AddAsync(food);
@@ -113,10 +111,12 @@ namespace FoodOrder.API.Controllers
         {
             return new FoodResponse
             {
+                Id= food.Id,
                 Name = food.Name,
                 Price = food.Price,
                 Description = food.Description,
-                Type = food.Type
+                Type = food.Type,
+                CategoryId=food.FoodCategoryId
             };
         }
     }
