@@ -11,11 +11,13 @@ public class AuthController : ControllerBase
 {
     private readonly ITokenService _tokenService;
     private readonly IUserRepository _repo;
+    private readonly PasswordHasherFactory _passwordHasherFactory;
 
-    public AuthController(ITokenService tokenService, IUserRepository repo)
+    public AuthController(ITokenService tokenService, IUserRepository repo, PasswordHasherFactory passwordHasherFactory)
     {
         _tokenService = tokenService;
         _repo = repo;
+        _passwordHasherFactory = passwordHasherFactory;
     }
 
     [HttpPost("login")]
@@ -23,16 +25,23 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login(Login request)
     {
         var user = await _repo.GetByUsernameAsync(request.Username);
-
         if (user == null) return Unauthorized();
 
-        var passwordHasher = new PasswordHasher<User>();
-        var result = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+        var hasher = _passwordHasherFactory.GetHasher(user.HashMethod);
 
-        if (result == PasswordVerificationResult.Failed)
+        if (!hasher.VerifyPassword(user, request.Password))
             return Unauthorized();
+
+        if (user.HashMethod != HashMethod.BCrypt)
+        {
+            var newHasher = _passwordHasherFactory.GetHasher(HashMethod.BCrypt);
+            user.PasswordHash = newHasher.HashPassword(request.Password);
+            user.HashMethod = HashMethod.BCrypt;
+            await _repo.UpdateAsync(user);
+        }
 
         var token = _tokenService.GenerateToken(user);
         return Ok(new { token });
     }
+
 }

@@ -3,6 +3,7 @@ using FoodOrder.Application.DTOs.Review;
 using FoodOrder.Application.DTOs.User;
 using FoodOrder.Application.Interfaces;
 using FoodOrder.Domain.Entities;
+using FoodOrder.Halpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -57,12 +58,10 @@ namespace FoodOrder.API.Controllers
 
             return Ok(MapToResponse(existing));
         }
-
         [HttpPost]
         [AllowAnonymous]
         public async Task<ActionResult<UserResponse>> Create(UserRequest userRequest)
         {
-            var passwordHasher = new PasswordHasher<User>();
             var user = new User
             {
                 Username = userRequest.Username,
@@ -70,12 +69,14 @@ namespace FoodOrder.API.Controllers
                 FullName = userRequest.FullName,
                 PhoneNumber = userRequest.PhoneNumber,
                 Role = userRequest.IsOwner ? UserRole.Owner : UserRole.Customer,
-                PasswordHash = passwordHasher.HashPassword(new User(), userRequest.Password)
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequest.Password),
+                HashMethod = HashMethod.BCrypt
             };
 
             var created = await _repo.AddAsync(user);
             return Created($"api/users/{created.Id}", MapToResponse(created));
         }
+
 
         [HttpPut("{id}")]
         [Authorize]
@@ -92,11 +93,10 @@ namespace FoodOrder.API.Controllers
             existing.FullName = request.FullName;
             existing.PhoneNumber = request.PhoneNumber;
             existing.Role = request.IsOwner ? UserRole.Owner : UserRole.Customer;
-
             if (!string.IsNullOrEmpty(request.Password))
             {
-                var passwordHasher = new PasswordHasher<User>();
-                existing.PasswordHash = passwordHasher.HashPassword(existing, request.Password);
+                existing.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+                existing.HashMethod = HashMethod.BCrypt;
             }
 
             await _repo.UpdateAsync(existing);
