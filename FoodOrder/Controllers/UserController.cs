@@ -17,11 +17,13 @@ namespace FoodOrder.API.Controllers
     {
         private readonly IUserRepository _repo;
         private readonly IDistributedCache _cache;
+        private readonly ILogger<UserController> _logger;
 
-        public UserController(IUserRepository repo, IDistributedCache cache)
+        public UserController(IUserRepository repo, IDistributedCache cache, ILogger<UserController> logger)
         {
             _repo = repo;
             _cache = cache;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -31,11 +33,18 @@ namespace FoodOrder.API.Controllers
             const string cacheKey = "users_all";
 
             var cachedData = await _cache.GetStringAsync(cacheKey);
+            _logger.LogInformation("requested for all users");
             if (cachedData != null)
             {
+                _logger.LogInformation("cache hit for key {cacheKey}",cacheKey);
                 var cachedUsers = System.Text.Json.JsonSerializer
                     .Deserialize<List<UserResponse>>(cachedData);
                 return Ok(cachedUsers);
+                
+            }
+            else 
+            {
+                _logger.LogInformation("Cache miss for key {CacheKey}", cacheKey); 
             }
 
             var users = await _repo.GetAllAsync();
@@ -48,16 +57,22 @@ namespace FoodOrder.API.Controllers
             });
             return Ok(response);
         }
-
         [HttpGet("{id}")]
         [Authorize]
         public async Task<ActionResult<UserResponse>> GetById(int id)
         {
+            _logger.LogInformation("Fetching user with ID {UserId}", id);
+
             var existing = await _repo.GetByIdAsync(id);
-            if (existing == null) return NotFound();
+            if (existing == null)
+            {
+                _logger.LogWarning("User with ID {UserId} not found", id);
+                return NotFound();
+            }
 
             return Ok(MapToResponse(existing));
         }
+
         [HttpPost]
         [AllowAnonymous]
         public async Task<ActionResult<UserResponse>> Create(UserRequest userRequest)
@@ -72,7 +87,7 @@ namespace FoodOrder.API.Controllers
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequest.Password),
                 HashMethod = HashMethod.BCrypt
             };
-
+            _logger.LogInformation("Creating new user with username {Username}", userRequest.Username);
             var created = await _repo.AddAsync(user);
             return Created($"api/users/{created.Id}", MapToResponse(created));
         }
@@ -98,6 +113,16 @@ namespace FoodOrder.API.Controllers
                 existing.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
                 existing.HashMethod = HashMethod.BCrypt;
             }
+            _logger.LogInformation("Updating user with ID {UserId}", id);
+
+            if (existing == null)
+            {
+                _logger.LogWarning("User with ID {UserId} not found for update", id);
+            }
+            else if (existing.Id != currentUserId)
+            {
+                _logger.LogWarning("User {CurrentUserId} attempted to update user {TargetUserId}", currentUserId, id);
+            }
 
             await _repo.UpdateAsync(existing);
             return NoContent();
@@ -112,6 +137,16 @@ namespace FoodOrder.API.Controllers
 
             var currentUserId = GetCurrentUserId();
             if (existing.Id != currentUserId) return Forbid();
+            _logger.LogInformation("Deleting user with ID {UserId}", id);
+
+            if (existing == null)
+            {
+                _logger.LogWarning("User with ID {UserId} not found for deletion", id);
+            }
+            else if (existing.Id != currentUserId)
+            {
+                _logger.LogWarning("User {CurrentUserId} attempted to delete user {TargetUserId}", currentUserId, id);
+            }
 
             var deleted = await _repo.DeleteAsync(id);
             if (!deleted) return NotFound();

@@ -20,29 +20,35 @@ namespace FoodOrder.API.Controllers
         private readonly ICategoryRepository _repo;
         private readonly IDistributedCache _cache;
         private readonly IRestaurantRepository _restaurantRepo;
+        private readonly ILogger<RestaurantController> _logger;
 
-        public CategoryController(ICategoryRepository repo, IDistributedCache cache, IRestaurantRepository restaurantRepo)
+        public CategoryController(ICategoryRepository repo, IDistributedCache cache, IRestaurantRepository restaurantRepo, ILogger<RestaurantController> logger)
         {
             _repo = repo;
             _cache = cache;
             _restaurantRepo = restaurantRepo;
+            _logger = logger;
         }
 
         [HttpGet]
         [AllowAnonymous]
         public async Task<ActionResult<List<FoodCategoryResponse>>> GetAll()
         {
+            _logger.LogInformation("request for all categories");
             const string cacheKey = "categories_all";
 
             var cachedData = await _cache.GetStringAsync(cacheKey);
             if (cachedData != null)
             {
+                _logger.LogInformation("cache hit key {cachekey}", cacheKey);
                 var cachedCategories = System.Text.Json.JsonSerializer
                     .Deserialize<List<FoodCategoryResponse>>(cachedData);
                 return Ok(cachedCategories);
             }
+            _logger.LogInformation("Cache miss for key {CacheKey}", cacheKey);
 
             var categories = await _repo.GetAllAsync();
+            _logger.LogInformation("Fetched {Count} categories from repository", categories.Count());
             var response = categories.Select(MapToResponse).ToList();
 
             var serialized = System.Text.Json.JsonSerializer.Serialize(response);
@@ -50,15 +56,20 @@ namespace FoodOrder.API.Controllers
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
             });
-
+            _logger.LogInformation("Cached {Count} categories with key {CacheKey}", response.Count, cacheKey);
             return Ok(response);
         }
         [HttpGet("{id}")]
         [AllowAnonymous]
         public async Task<ActionResult<FoodCategory>> GetById(int id)
         {
+            _logger.LogInformation("fetch category with id{categoryId}", id);
             var existing = await _repo.GetByIdAsync(id);
-            if (existing == null) return NotFound(); 
+            if (existing == null) 
+            {
+                _logger.LogWarning("category with id {categoryId} not found", id);
+                return NotFound(); }
+
             return Ok(MapToResponse(existing));
         }
 
@@ -66,9 +77,15 @@ namespace FoodOrder.API.Controllers
         [Authorize(Roles = "Owner")]
         public async Task<ActionResult<FoodCategoryResponse>> Create(FoodCategoryRequest request)
         {
+            _logger.LogInformation("Creating category {Name} for restaurant {RestaurantId}", request.Name, request.RestaurantId);
             var restaurant = await _restaurantRepo.GetByIdAsync(request.RestaurantId);
-            if (restaurant == null) return BadRequest("Invalid RestaurantId");
+            if (restaurant == null) 
+            {
+                _logger.LogWarning("Invalid RestaurantId {RestaurantId} provided when creating category", request.RestaurantId);
+                return BadRequest("Invalid RestaurantId");
+            }
 
+            
             var category = new FoodCategory
             {
                 Name = request.Name,
@@ -84,11 +101,19 @@ namespace FoodOrder.API.Controllers
         [Authorize(Roles = "Owner")]
         public async Task<ActionResult> Update(int id, FoodCategoryRequest request)
         {
+            _logger.LogInformation("Updating category with ID {CategoryId}", id);
             var currentUserId = GetCurrentUserId();
             var existingCategory = await _repo.GetByIdAsync(id);
-            if (existingCategory == null) return NotFound();
+            if (existingCategory == null) 
+            {
+                _logger.LogWarning("Category with ID {CategoryId} not found for update", id); 
+                return NotFound();
+            }
             if (existingCategory.Restaurant.UserId != currentUserId)
-                return Forbid();
+            {
+                _logger.LogWarning("User {UserId} attempted to update category {CategoryId}", currentUserId, id); 
+                return Forbid(); 
+            }
             existingCategory.Name = request.Name;
             existingCategory.UpdatedAt = DateTime.UtcNow;
             await _repo.UpdateAsync(existingCategory);
@@ -98,11 +123,19 @@ namespace FoodOrder.API.Controllers
         [Authorize(Roles = "Owner")]
         public async Task<ActionResult> Delete(int id)
         {
+            _logger.LogInformation("Deleting category with ID {CategoryId}", id);
             var currentUserId = GetCurrentUserId();
             var existingCategory = await _repo.GetByIdAsync(id);
-            if (existingCategory == null) return NotFound();
-            if (existingCategory.Restaurant.UserId != currentUserId)
-                return Forbid();
+            if (existingCategory == null) 
+            {
+                _logger.LogWarning("Category with ID {CategoryId} not found for deletion", id); 
+                return NotFound(); 
+            }
+            if (existingCategory.Restaurant.UserId != currentUserId) 
+            { 
+                _logger.LogWarning("User {UserId} attempted to delete category {CategoryId}", currentUserId, id);
+                return Forbid(); 
+            }
             var deleted = await _repo.DeleteAsync(id);
             if (!deleted) return NotFound();
             return NoContent();

@@ -7,8 +7,19 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using Serilog;
+using Serilog.Sinks.Elasticsearch;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+builder.Host.UseSerilog((ctx, lc) => lc
+.Enrich.FromLogContext()
+.WriteTo.Console() .WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri("http://localhost:9200")) 
+{
+    AutoRegisterTemplate = true,
+    IndexFormat = $"foodorder-logs-{DateTime.UtcNow:yyyy-MM}" 
+}));
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -17,8 +28,6 @@ builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(c =>
 {
-   
-
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
