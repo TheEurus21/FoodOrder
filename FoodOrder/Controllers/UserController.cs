@@ -183,7 +183,7 @@ namespace FoodOrder.API.Controllers
                 Email = user.Email,
                 Orders = user.Orders.Select(o => new OrderResponse
                 {
-                    Status = o.Status.ToString()
+                    Status = o.Status
                 }).ToList(),
                 Reviews = user.Reviews.Select(r => new ReviewResponse
                 {

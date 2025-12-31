@@ -2,7 +2,11 @@
 {
     public class OrderResponse
     {
-        public string Status { get; set; }
+        public int Id { get; set; }
+        public string RestaurantName { get; set; }
+        public string Notes { get; set; }
+        public OrderStatus Status { get; set; }
+        public string PhoneNumber { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 }

@@ -70,11 +70,12 @@ namespace FoodOrder.API.Controllers
                 UserId = GetCurrentUserId(),
                 CreatedAt = DateTime.UtcNow,
                 Status = OrderStatus.Pending,
-                Notes = request.Notes
+                Notes = request.Notes,
+                PhoneNumber=request.PhoneNumber
             };
 
             var created = await _repo.AddAsync(order);
-            var readyBy = DateTime.UtcNow.AddMinutes(30);
+            var readyBy = DateTimeOffset.UtcNow.AddMinutes(30);
             await _publishEndpoint.Publish(new OrderCreated(created.Id, request.PhoneNumber, readyBy));
             return Ok(MapToResponse(created));
         }
@@ -93,6 +94,24 @@ namespace FoodOrder.API.Controllers
             await _cache.RemoveAsync("orders_all");
             return NoContent();
         }
+        [HttpPut("{id}/status")]
+        [AllowAnonymous]
+        public async Task<ActionResult> ChangeStatus(int id, [FromBody] ChangeOrderStatusRequest request)
+        {
+            var existingOrder = await _repo.GetByIdAsync(id);
+            if (existingOrder == null) return NotFound();
+
+            existingOrder.Status = request.Status;
+            await _repo.UpdateAsync(existingOrder);
+
+            await _cache.RemoveAsync("orders_all");
+
+            if (request.Status == OrderStatus.Completed) 
+            { await _publishEndpoint.Publish(new OrderReady(existingOrder.Id, existingOrder.PhoneNumber, DateTimeOffset.UtcNow)); }
+
+            return Ok(MapToResponse(existingOrder));
+        }
+
         [HttpDelete("{id}")]
         [Authorize(Roles = "Customer")]
         public async Task<ActionResult> Delete(int id)
@@ -112,9 +131,14 @@ namespace FoodOrder.API.Controllers
         {
             return new OrderResponse
             {
-                Status = order.Status.ToString(),
+                Id = order.Id,
+                RestaurantName = order.RestaurantName,
+                Notes = order.Notes,
+                Status = order.Status,
+                PhoneNumber = order.PhoneNumber,
                 CreatedAt = order.CreatedAt
             };
         }
+
     }
 }

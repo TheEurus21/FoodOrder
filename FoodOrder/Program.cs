@@ -10,6 +10,7 @@ using System.Text;
 using Serilog;
 using Serilog.Sinks.Elasticsearch;
 using MassTransit;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +38,11 @@ builder.Services.AddMassTransit(x =>
         });
     });
 });
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 builder.Services.AddSwaggerGen(c =>
 {
