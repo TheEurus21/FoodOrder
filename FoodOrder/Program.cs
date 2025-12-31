@@ -9,6 +9,7 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using Serilog;
 using Serilog.Sinks.Elasticsearch;
+using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +26,17 @@ builder.Host.UseSerilog((ctx, lc) => lc
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+builder.Services.AddMassTransit(x =>
+{
+    x.UsingActiveMq((context, cfg) =>
+    {
+        cfg.Host("localhost", 61616, h =>
+        {
+            h.Username("admin");
+            h.Password("admin");
+        });
+    });
+});
 
 builder.Services.AddSwaggerGen(c =>
 {
