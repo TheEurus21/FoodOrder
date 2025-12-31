@@ -16,7 +16,6 @@ namespace FoodOrder.API.Controllers
         private readonly IRestaurantRepository _repo;
         private readonly IDistributedCache _cache;
         private readonly ILogger<RestaurantController> _logger;
-
         public RestaurantController(IRestaurantRepository repo, IDistributedCache cache, ILogger<RestaurantController> logger)
         {
             _repo = repo;

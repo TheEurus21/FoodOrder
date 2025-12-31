@@ -12,12 +12,14 @@ public class AuthController : ControllerBase
     private readonly ITokenService _tokenService;
     private readonly IUserRepository _repo;
     private readonly PasswordHasherFactory _passwordHasherFactory;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(ITokenService tokenService, IUserRepository repo, PasswordHasherFactory passwordHasherFactory)
+    public AuthController(ITokenService tokenService, IUserRepository repo, PasswordHasherFactory passwordHasherFactory,ILogger<AuthController>logger)
     {
         _tokenService = tokenService;
         _repo = repo;
         _passwordHasherFactory = passwordHasherFactory;
+        _logger = logger;
     }
 
     [HttpPost("login")]
@@ -26,7 +28,7 @@ public class AuthController : ControllerBase
     {
         var user = await _repo.GetByUsernameAsync(request.Username);
         if (user == null) return Unauthorized();
-
+        _logger.LogInformation("Unauthorized");
         var hasher = _passwordHasherFactory.GetHasher(user.HashMethod);
 
         if (!hasher.VerifyPassword(user, request.Password))

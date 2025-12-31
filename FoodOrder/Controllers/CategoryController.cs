@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.DataProtection.KeyManagement.Internal;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 
 namespace FoodOrder.API.Controllers
 {
@@ -63,14 +64,24 @@ namespace FoodOrder.API.Controllers
         [AllowAnonymous]
         public async Task<ActionResult<FoodCategory>> GetById(int id)
         {
-            _logger.LogInformation("fetch category with id{categoryId}", id);
-            var existing = await _repo.GetByIdAsync(id);
-            if (existing == null) 
+            string cacheKey =$"category_{id}";
+            var cached=await _cache.GetStringAsync(cacheKey);
+            if (cached != null)
             {
-                _logger.LogWarning("category with id {categoryId} not found", id);
-                return NotFound(); }
-
-            return Ok(MapToResponse(existing));
+                _logger.LogInformation("cache hit for id {categoryId}", id);
+               var response = JsonSerializer.Deserialize<FoodCategoryResponse>(cached);
+                return Ok(response);
+            }
+            var existing = await _repo.GetByIdAsync(id); 
+            if (existing == null) return NotFound(); 
+            var mapped = MapToResponse(existing); 
+            var serialized = JsonSerializer.Serialize(mapped);
+            await _cache.SetStringAsync(cacheKey, serialized, new DistributedCacheEntryOptions 
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+            });
+            _logger.LogInformation("Cached category ID {CategoryId}", id); 
+            return Ok(mapped);
         }
 
         [HttpPost]
@@ -104,19 +115,16 @@ namespace FoodOrder.API.Controllers
             _logger.LogInformation("Updating category with ID {CategoryId}", id);
             var currentUserId = GetCurrentUserId();
             var existingCategory = await _repo.GetByIdAsync(id);
-            if (existingCategory == null) 
-            {
-                _logger.LogWarning("Category with ID {CategoryId} not found for update", id); 
-                return NotFound();
-            }
-            if (existingCategory.Restaurant.UserId != currentUserId)
-            {
-                _logger.LogWarning("User {UserId} attempted to update category {CategoryId}", currentUserId, id); 
-                return Forbid(); 
-            }
+            if (existingCategory == null) return NotFound();
+            
+            if (existingCategory.Restaurant.UserId != currentUserId) return Forbid(); 
+   
             existingCategory.Name = request.Name;
             existingCategory.UpdatedAt = DateTime.UtcNow;
             await _repo.UpdateAsync(existingCategory);
+            await _cache.RemoveAsync($"category_{id}"); 
+            await _cache.RemoveAsync("categories_all");
+            _logger.LogInformation("Invalidated caches for category {CategoryId}", id);
             return NoContent();
         }
         [HttpDelete("{id}")]
@@ -137,6 +145,8 @@ namespace FoodOrder.API.Controllers
                 return Forbid(); 
             }
             var deleted = await _repo.DeleteAsync(id);
+            await _cache.RemoveAsync($"category_{id}");
+            await _cache.RemoveAsync("categories_all");
             if (!deleted) return NotFound();
             return NoContent();
         }

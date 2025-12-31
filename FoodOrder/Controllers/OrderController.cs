@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
+using MassTransit;
+using FoodOrder.Contracts.Events;
 
 namespace FoodOrder.API.Controllers
 {
@@ -15,10 +17,14 @@ namespace FoodOrder.API.Controllers
     {
         private readonly IOrderRepository _repo;
         private readonly IDistributedCache _cache;
-        public OrderController(IOrderRepository repo, IDistributedCache cache)
+        private readonly ILogger<OrderController> _logger;
+        public readonly IPublishEndpoint _publishEndpoint;
+        public OrderController(IOrderRepository repo, IDistributedCache cache,ILogger<OrderController>logger,IPublishEndpoint publishEndpoint)
         {
             _repo = repo;
             _cache = cache;
+            _logger = logger;
+            _publishEndpoint = publishEndpoint;
         }
 
         [HttpGet]
@@ -29,10 +35,13 @@ namespace FoodOrder.API.Controllers
             var cachedData = await _cache.GetStringAsync(cacheKey);
             if (cachedData != null)
             {
+                _logger.LogInformation("Cache hit for key {CacheKey}", cacheKey);
                 var cachedOrders = System.Text.Json.JsonSerializer.
                     Deserialize<List<OrderResponse>>(cachedData);
                 return Ok(cachedOrders);
             }
+            _logger.LogInformation("Cache miss for key {CacheKey}", cacheKey);
+
             var orders = await _repo.GetAllAsync();
             var response = orders.Select(MapToResponse).ToList();
             var serialized = System.Text.Json.JsonSerializer.Serialize(response);
@@ -48,7 +57,7 @@ namespace FoodOrder.API.Controllers
         {
             var existing = await _repo.GetByIdAsync(id);
             if (existing == null) return NotFound();
-            return Ok(existing);
+            return Ok(MapToResponse(existing));
 
         }
         [HttpPost]
@@ -65,6 +74,8 @@ namespace FoodOrder.API.Controllers
             };
 
             var created = await _repo.AddAsync(order);
+            var readyBy = DateTime.UtcNow.AddMinutes(30);
+            await _publishEndpoint.Publish(new OrderCreated(created.Id, request.PhoneNumber, readyBy));
             return Ok(MapToResponse(created));
         }
 
@@ -79,6 +90,7 @@ namespace FoodOrder.API.Controllers
 
             existingOrder.Notes = request.Notes;
             await _repo.UpdateAsync(existingOrder);
+            await _cache.RemoveAsync("orders_all");
             return NoContent();
         }
         [HttpDelete("{id}")]
@@ -91,6 +103,7 @@ namespace FoodOrder.API.Controllers
             if (existingOrder.UserId != currentUserId) return Forbid();
 
             var deleted = await _repo.DeleteAsync(id);
+            await _cache.RemoveAsync("orders_all");
             if (!deleted) return NotFound();
 
             return NoContent();

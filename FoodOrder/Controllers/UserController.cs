@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 
 namespace FoodOrder.API.Controllers
 {
@@ -61,16 +62,30 @@ namespace FoodOrder.API.Controllers
         [Authorize]
         public async Task<ActionResult<UserResponse>> GetById(int id)
         {
-            _logger.LogInformation("Fetching user with ID {UserId}", id);
-
-            var existing = await _repo.GetByIdAsync(id);
-            if (existing == null)
+            string cacheKey = $"user_{id}";
+            var cached= await _cache.GetStringAsync(cacheKey);
+            if (cached != null)
             {
-                _logger.LogWarning("User with ID {UserId} not found", id);
-                return NotFound();
-            }
+                _logger.LogInformation("Fetching user with ID {UserId}", id);
+                var response= JsonSerializer.Deserialize<UserResponse>(cached);
+                return Ok(response);
 
-            return Ok(MapToResponse(existing));
+            }
+            else
+            {
+                _logger.LogInformation("Cache miss for restaurant ID {RestaurantId}", id);
+            }
+            var existing = await _repo.GetByIdAsync(id);
+            if (existing == null) return NotFound();
+            var mapped = MapToResponse(existing);
+            var serialized = JsonSerializer.Serialize(mapped);
+            await _cache.SetStringAsync(cacheKey, serialized, new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+            });
+            _logger.LogInformation("Cached restaurant ID {RestaurantId}", id);
+
+            return Ok(mapped);
         }
 
         [HttpPost]
@@ -125,6 +140,9 @@ namespace FoodOrder.API.Controllers
             }
 
             await _repo.UpdateAsync(existing);
+            await _cache.RemoveAsync("users_all");
+            await _cache.RemoveAsync($"user_{id}");
+            _logger.LogInformation("Invalidated caches for user ID {UserId}", id);
             return NoContent();
         }
 
@@ -149,6 +167,9 @@ namespace FoodOrder.API.Controllers
             }
 
             var deleted = await _repo.DeleteAsync(id);
+            await _cache.RemoveAsync("users_all");
+            await _cache.RemoveAsync($"user_{id}");
+            _logger.LogInformation("Invalidated caches for user ID {UserId}", id);
             if (!deleted) return NotFound();
 
             return NoContent();
