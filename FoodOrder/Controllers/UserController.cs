@@ -28,7 +28,7 @@ namespace FoodOrder.API.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin")]
+        [AllowAnonymous]
         public async Task<ActionResult<List<UserResponse>>> GetAll()
         {
             const string cacheKey = "users_all";

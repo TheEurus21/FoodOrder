@@ -11,6 +11,7 @@ using Serilog;
 using Serilog.Sinks.Elasticsearch;
 using MassTransit;
 using System.Text.Json.Serialization;
+using FoodOrder.Application.Saga;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +30,8 @@ builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddMassTransit(x =>
 {
+    x.AddSagaStateMachine<OrderSmsSaga, OrderSmsSagaState>()
+       .InMemoryRepository();
     x.UsingActiveMq((context, cfg) =>
     {
         cfg.Host("localhost", 61616, h =>
