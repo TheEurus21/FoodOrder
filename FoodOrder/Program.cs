@@ -11,7 +11,8 @@ using Serilog;
 using Serilog.Sinks.Elasticsearch;
 using MassTransit;
 using System.Text.Json.Serialization;
-using FoodOrder.Application.Saga;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,11 +28,22 @@ builder.Host.UseSerilog((ctx, lc) => lc
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-
 builder.Services.AddMassTransit(x =>
 {
     x.AddSagaStateMachine<OrderSmsSaga, OrderSmsSagaState>()
-       .InMemoryRepository();
+     .EntityFrameworkRepository(r =>
+     {
+         r.ConcurrencyMode = ConcurrencyMode.Pessimistic;
+
+         r.AddDbContext<DbContext, SmsSagaDbContext>((provider, options) =>
+         {
+             options.UseSqlServer(
+                 builder.Configuration.GetConnectionString("SagaConnection"),
+                 sqlOptions => sqlOptions.MigrationsAssembly(typeof(SmsSagaDbContext).Assembly.FullName)
+             );
+         });
+     });
+
     x.UsingActiveMq((context, cfg) =>
     {
         cfg.Host("localhost", 61616, h =>
@@ -39,8 +51,11 @@ builder.Services.AddMassTransit(x =>
             h.Username("admin");
             h.Password("admin");
         });
+
+        cfg.ConfigureEndpoints(context);
     });
 });
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -77,6 +92,11 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContext<SmsSagaDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("SagaConnection")));
+
+
+
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRestaurantRepository, RestaurantRepository>();

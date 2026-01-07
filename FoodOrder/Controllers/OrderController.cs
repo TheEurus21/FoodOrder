@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using MassTransit;
 using FoodOrder.Contracts.Events;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace FoodOrder.API.Controllers
 {
@@ -64,19 +65,26 @@ namespace FoodOrder.API.Controllers
         [AllowAnonymous]
         public async Task<ActionResult<OrderResponse>> Create(OrderRequest request)
         {
+            var correlationId = NewId.NextGuid();
+            var readyBy = DateTimeOffset.UtcNow.AddMinutes(30);
             var order = new Order
             {
+                CorrelationId = correlationId,
                 RestaurantName = request.RestaurantName,
                 UserId = GetCurrentUserId(),
                 CreatedAt = DateTime.UtcNow,
                 Status = OrderStatus.Pending,
                 Notes = request.Notes,
-                PhoneNumber=request.PhoneNumber
+                PhoneNumber = request.PhoneNumber
             };
-
             var created = await _repo.AddAsync(order);
-            var readyBy = DateTimeOffset.UtcNow.AddMinutes(30);
-            await _publishEndpoint.Publish(new OrderCreated(created.Id, request.PhoneNumber, readyBy));
+            await _publishEndpoint.Publish(new OrderCreated(
+                correlationId,
+                created.Id,
+                request.PhoneNumber,
+                readyBy
+            ));
+
             return Ok(MapToResponse(created));
         }
 
@@ -106,8 +114,13 @@ namespace FoodOrder.API.Controllers
 
             await _cache.RemoveAsync("orders_all");
 
-            if (request.Status == OrderStatus.Completed) 
-            { await _publishEndpoint.Publish(new OrderReady(existingOrder.Id, existingOrder.PhoneNumber, DateTimeOffset.UtcNow)); }
+            if (request.Status == OrderStatus.Completed)
+                await _publishEndpoint.Publish(new OrderReady(
+          existingOrder.CorrelationId,
+          existingOrder.Id,
+          existingOrder.PhoneNumber,
+          DateTimeOffset.UtcNow
+                ));
 
             return Ok(MapToResponse(existingOrder));
         }

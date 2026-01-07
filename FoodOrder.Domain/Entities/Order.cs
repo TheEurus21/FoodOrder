@@ -3,6 +3,7 @@
     public class Order
     {
         public int Id { get; set; }
+        public Guid CorrelationId { get; set; }
         public int? RestaurantId { get; set; }
         public string RestaurantName { get; set; }
         public Restaurant? Restaurant { get; set; }

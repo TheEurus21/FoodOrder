@@ -1,6 +1,6 @@
 ﻿namespace FoodOrder.Contracts.Events
 {
-    public record OrderCreated(int OrderId, string PhoneNumber, DateTimeOffset ReadyBy);
+    public record OrderCreated(Guid CorrelationId,int OrderId, string PhoneNumber, DateTimeOffset ReadyBy);
 
-    public record OrderReady(int OrderId,string PhoneNumber,DateTimeOffset Ready);
+    public record OrderReady(Guid CorrelationId,int OrderId,string PhoneNumber,DateTimeOffset Ready);
 }
