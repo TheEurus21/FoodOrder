@@ -1,6 +1,7 @@
 ﻿using FoodOrder.Application.Interfaces;
 using FoodOrder.Domain.Entities;
 using FoodOrder.Infrastructure.Data;
+using FoodOrder.Migrations;
 using Microsoft.EntityFrameworkCore;
 
 namespace FoodOrder.Infrastructure.Repositories
@@ -40,6 +41,11 @@ namespace FoodOrder.Infrastructure.Repositories
             _context.Restaurants.Remove(restaurant);
             await _context.SaveChangesAsync();
             return true;
+        }
+        public async Task<int> CountByOwner(int userId)
+        {
+            var restaurantCount=await _context.Restaurants.Where(r=>r.UserId==userId).CountAsync();
+            return restaurantCount;
         }
     }
 }

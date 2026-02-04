@@ -13,6 +13,8 @@ using MassTransit;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
+using FoodOrder.Infrastructure.Middleware;
+using FoodOrder.Application.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -107,6 +109,7 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IPasswordHasherService, IdentityPasswordHasherService>();
 builder.Services.AddScoped<IPasswordHasherService, BCryptPasswordHasherService>();
 builder.Services.AddScoped<PasswordHasherFactory>();
+builder.Services.AddScoped<RestaurantService>();
 
 builder.Services.AddStackExchangeRedisCache(options =>
 {
@@ -142,7 +145,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseAuthentication(); 
 app.UseAuthorization();
 

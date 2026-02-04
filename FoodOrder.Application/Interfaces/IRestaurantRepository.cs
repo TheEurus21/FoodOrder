@@ -9,5 +9,6 @@ namespace FoodOrder.Application.Interfaces
         Task<Restaurant> AddAsync(Restaurant restaurant);
         Task UpdateAsync(Restaurant restaurant);
         Task<bool> DeleteAsync(int id);
+        Task<int>CountByOwner(int userId);
     }
 }

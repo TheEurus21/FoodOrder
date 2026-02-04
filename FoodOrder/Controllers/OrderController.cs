@@ -8,6 +8,8 @@ using Microsoft.Extensions.Caching.Distributed;
 using MassTransit;
 using FoodOrder.Contracts.Events;
 using Microsoft.AspNetCore.Http.HttpResults;
+using System.Security.Claims;
+using Amqp.Listener;
 
 namespace FoodOrder.API.Controllers
 {
@@ -65,25 +67,36 @@ namespace FoodOrder.API.Controllers
         [AllowAnonymous]
         public async Task<ActionResult<OrderResponse>> Create(OrderRequest request)
         {
-            var correlationId = NewId.NextGuid();
+            int? userId = null;
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+
+            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out var parsedUserId))
+            {
+                userId = parsedUserId;
+            }
             var readyBy = DateTimeOffset.UtcNow.AddMinutes(30);
+
             var order = new Order
             {
-                CorrelationId = correlationId,
+                CorrelationId = Guid.Parse(HttpContext.Items["CorrelationId"]?.ToString() ?? Guid.NewGuid().ToString()),
+                OrderCorrelationId = Guid.NewGuid(),
                 RestaurantName = request.RestaurantName,
-                UserId = GetCurrentUserId(),
+                UserId = userId,
                 CreatedAt = DateTime.UtcNow,
                 Status = OrderStatus.Pending,
                 Notes = request.Notes,
                 PhoneNumber = request.PhoneNumber
             };
+
             var created = await _repo.AddAsync(order);
+            var correlationId = HttpContext.Items["CorrelationId"]?.ToString();
             await _publishEndpoint.Publish(new OrderCreated(
-                correlationId,
-                created.Id,
-                request.PhoneNumber,
-                readyBy
+                CorrelationId: Guid.Parse(correlationId),
+                OrderId: created.Id,
+                PhoneNumber: request.PhoneNumber,
+                ReadyBy: readyBy
             ));
+
 
             return Ok(MapToResponse(created));
         }

@@ -1,5 +1,6 @@
 ﻿using FoodOrder.Application.DTOs.Restaurant;
 using FoodOrder.Application.Interfaces;
+using FoodOrder.Application.Services;
 using FoodOrder.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,11 +17,14 @@ namespace FoodOrder.API.Controllers
         private readonly IRestaurantRepository _repo;
         private readonly IDistributedCache _cache;
         private readonly ILogger<RestaurantController> _logger;
-        public RestaurantController(IRestaurantRepository repo, IDistributedCache cache, ILogger<RestaurantController> logger)
+        private readonly RestaurantService _restaurantService;
+
+        public RestaurantController(IRestaurantRepository repo, IDistributedCache cache, ILogger<RestaurantController> logger, RestaurantService restaurantService)
         {
             _repo = repo;
             _cache = cache;
             _logger = logger;
+            _restaurantService = restaurantService;
         }
         [HttpGet]
         [AllowAnonymous]
@@ -92,6 +96,18 @@ namespace FoodOrder.API.Controllers
         public async Task<ActionResult<RestaurantResponse>> Create(RestaurantRequest request)
         {
             var userId = GetCurrentUserId();
+            var currentCount = await _repo.CountByOwner(userId);
+            try
+            {
+                _restaurantService.ValidateOwnerCanAdd(userId, currentCount);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
 
             var restaurant = new Restaurant
             {
