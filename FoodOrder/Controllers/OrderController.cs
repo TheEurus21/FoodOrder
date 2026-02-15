@@ -10,6 +10,7 @@ using FoodOrder.Contracts.Events;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Security.Claims;
 using Amqp.Listener;
+using FoodOrder.Application.Services;
 
 namespace FoodOrder.API.Controllers
 {
@@ -22,12 +23,15 @@ namespace FoodOrder.API.Controllers
         private readonly IDistributedCache _cache;
         private readonly ILogger<OrderController> _logger;
         public readonly IPublishEndpoint _publishEndpoint;
-        public OrderController(IOrderRepository repo, IDistributedCache cache,ILogger<OrderController>logger,IPublishEndpoint publishEndpoint)
+        private readonly RestaurantService _restaurantService;
+
+        public OrderController(IOrderRepository repo, IDistributedCache cache,ILogger<OrderController>logger,IPublishEndpoint publishEndpoint,RestaurantService restaurantService)
         {
             _repo = repo;
             _cache = cache;
             _logger = logger;
             _publishEndpoint = publishEndpoint;
+            _restaurantService = restaurantService;
         }
 
         [HttpGet]
@@ -75,9 +79,12 @@ namespace FoodOrder.API.Controllers
                 userId = parsedUserId;
             }
             var readyBy = DateTimeOffset.UtcNow.AddMinutes(30);
+            var todayCount = await _repo.CountTodayOrderPerRestaurant(request.RestaurantId);
+            _restaurantService.ValidateOwnerCanPlaceOrder(todayCount);
 
             var order = new Order
             {
+                RestaurantId = request.RestaurantId,
                 CorrelationId = Guid.Parse(HttpContext.Items["CorrelationId"]?.ToString() ?? Guid.NewGuid().ToString()),
                 OrderCorrelationId = Guid.NewGuid(),
                 RestaurantName = request.RestaurantName,

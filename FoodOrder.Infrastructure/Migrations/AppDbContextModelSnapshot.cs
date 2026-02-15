@@ -50,7 +50,7 @@ namespace FoodOrder.Migrations
 
                     b.HasIndex("FoodCategoryId");
 
-                    b.ToTable("Foods");
+                    b.ToTable("Foods", (string)null);
                 });
 
             modelBuilder.Entity("FoodOrder.Domain.Entities.FoodCategory", b =>
@@ -86,7 +86,7 @@ namespace FoodOrder.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Categories");
+                    b.ToTable("Categories", (string)null);
                 });
 
             modelBuilder.Entity("FoodOrder.Domain.Entities.Order", b =>
@@ -136,7 +136,7 @@ namespace FoodOrder.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Orders");
+                    b.ToTable("Orders", (string)null);
                 });
 
             modelBuilder.Entity("FoodOrder.Domain.Entities.OrderItem", b =>
@@ -166,7 +166,7 @@ namespace FoodOrder.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.ToTable("OrderItems");
+                    b.ToTable("OrderItems", (string)null);
                 });
 
             modelBuilder.Entity("FoodOrder.Domain.Entities.Restaurant", b =>
@@ -195,7 +195,7 @@ namespace FoodOrder.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Restaurants");
+                    b.ToTable("Restaurants", (string)null);
                 });
 
             modelBuilder.Entity("FoodOrder.Domain.Entities.Review", b =>
@@ -235,7 +235,7 @@ namespace FoodOrder.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Reviews");
+                    b.ToTable("Reviews", (string)null);
                 });
 
             modelBuilder.Entity("FoodOrder.Domain.Entities.User", b =>
@@ -274,7 +274,7 @@ namespace FoodOrder.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("FoodOrder.Domain.Entities.Food", b =>

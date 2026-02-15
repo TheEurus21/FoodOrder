@@ -15,6 +15,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using FoodOrder.Infrastructure.Middleware;
 using FoodOrder.Application.Services;
+using FoodOrder.Application.Options;
+using FoodOrder.Infrastructure.BackgroundServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,7 +30,7 @@ builder.Host.UseSerilog((ctx, lc) => lc
 }));
 
 // Add services to the container.
-builder.Services.AddControllers();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddMassTransit(x =>
 {
@@ -97,7 +99,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddDbContext<SmsSagaDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("SagaConnection")));
 
-
+builder.Services.Configure<BussinessRulesOptions>(
+    builder.Configuration.GetSection("BussinessRules")
+);
 
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -110,6 +114,8 @@ builder.Services.AddScoped<IPasswordHasherService, IdentityPasswordHasherService
 builder.Services.AddScoped<IPasswordHasherService, BCryptPasswordHasherService>();
 builder.Services.AddScoped<PasswordHasherFactory>();
 builder.Services.AddScoped<RestaurantService>();
+builder.Services.AddHostedService<OrderCancelWorker>();
+
 
 builder.Services.AddStackExchangeRedisCache(options =>
 {

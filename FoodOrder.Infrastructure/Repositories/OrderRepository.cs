@@ -42,5 +42,17 @@ namespace FoodOrder.Infrastructure.Repositories
             await _context.SaveChangesAsync();
             return true;
         }
+        public async Task<int> CountTodayOrderPerRestaurant(int restaurantId)
+        {
+            var start = DateTime.UtcNow.Date;
+            var end = start.AddDays(1);
+            var ordersCount = await _context.Orders.CountAsync(o =>
+        o.RestaurantId == restaurantId &&
+        o.CreatedAt >= start &&
+        o.CreatedAt < end
+    );
+
+            return ordersCount;
+        }
     }
 }
