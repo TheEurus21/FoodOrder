@@ -17,6 +17,9 @@ using FoodOrder.Infrastructure.Middleware;
 using FoodOrder.Application.Services;
 using FoodOrder.Application.Options;
 using FoodOrder.Infrastructure.BackgroundServices;
+using Hangfire;
+using Hangfire.SqlServer;
+using Microsoft.AspNetCore.Identity.UI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,7 +68,6 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
-
 builder.Services.AddSwaggerGen(c =>
 {
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -115,7 +117,6 @@ builder.Services.AddScoped<IPasswordHasherService, BCryptPasswordHasherService>(
 builder.Services.AddScoped<PasswordHasherFactory>();
 builder.Services.AddScoped<RestaurantService>();
 builder.Services.AddHostedService<OrderCancelWorker>();
-
 
 builder.Services.AddStackExchangeRedisCache(options =>
 {

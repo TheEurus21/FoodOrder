@@ -2,8 +2,10 @@
 using FoodOrder.Application.DTOs.Review;
 using FoodOrder.Application.DTOs.User;
 using FoodOrder.Application.Interfaces;
+using FoodOrder.Application.Services;
 using FoodOrder.Domain.Entities;
 using FoodOrder.Halpers;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -104,7 +106,9 @@ namespace FoodOrder.API.Controllers
             };
             _logger.LogInformation("Creating new user with username {Username}", userRequest.Username);
             var created = await _repo.AddAsync(user);
+            BackgroundJob.Enqueue<EmailService>(x => x.SendWelcomeEmail(created.Email));
             return Created($"api/users/{created.Id}", MapToResponse(created));
+
         }
 
 
